@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>工程報價系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Noto Sans TC', 'sans-serif'],
+            },
+            colors: {
+              primary: '#1565C0',
+              'primary-light': '#1976D2',
+              'primary-dark': '#0D47A1',
+              accent: '#FFF176',
+              'accent-dark': '#F9A825',
+            },
+          },
+        },
+      }
+    </script>
+    <style>
+      * { font-family: 'Noto Sans TC', sans-serif; }
+      body { margin: 0; padding: 0; background: #f5f5f5; }
+      .btn-yellow {
+        background-color: #FFF176;
+        border: 1px solid #F9A825;
+        color: #333;
+        padding: 4px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 500;
+        transition: background-color 0.15s;
+      }
+      .btn-yellow:hover { background-color: #FFF59D; }
+      .btn-blue {
+        background-color: #1565C0;
+        border: 1px solid #0D47A1;
+        color: white;
+        padding: 4px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 500;
+        transition: background-color 0.15s;
+      }
+      .btn-blue:hover { background-color: #1976D2; }
+      .btn-gray {
+        background-color: #e0e0e0;
+        border: 1px solid #bdbdbd;
+        color: #333;
+        padding: 4px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 500;
+      }
+      .btn-gray:hover { background-color: #d5d5d5; }
+      .btn-red {
+        background-color: #f44336;
+        border: 1px solid #d32f2f;
+        color: white;
+        padding: 4px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 500;
+      }
+      .btn-red:hover { background-color: #e53935; }
+      .btn-green {
+        background-color: #2e7d32;
+        border: 1px solid #1b5e20;
+        color: white;
+        padding: 4px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 500;
+        transition: background-color 0.15s;
+      }
+      .btn-green:hover { background-color: #388e3c; }
+      .btn-green:disabled { background-color: #a5d6a7; border-color: #c8e6c9; cursor: default; }
+      .btn-yellow:disabled { opacity: 0.5; cursor: default; }
+      input, select, textarea {
+        border: 1px solid #bdbdbd;
+        border-radius: 3px;
+        padding: 3px 6px;
+        font-size: 13px;
+        outline: none;
+        font-family: 'Noto Sans TC', sans-serif;
+      }
+      input:focus, select:focus, textarea:focus {
+        border-color: #1565C0;
+        box-shadow: 0 0 0 2px rgba(21,101,192,0.15);
+      }
+      table { border-collapse: collapse; width: 100%; }
+      th {
+        background: #1565C0;
+        color: white;
+        padding: 6px 8px;
+        font-size: 13px;
+        border: 1px solid #0D47A1;
+        white-space: nowrap;
+      }
+      td {
+        padding: 4px 6px;
+        font-size: 13px;
+        border: 1px solid #e0e0e0;
+      }
+      tr:nth-child(even) td { background: #f9f9f9; }
+      .subtotal-row td { background: #E3F2FD !important; font-weight: 600; }
+      .total-row td { background: #BBDEFB !important; font-weight: 700; }
+      .category-row td { background: #FFF9C4 !important; font-weight: 600; color: #1565C0; }
+      .modal-overlay {
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.5); z-index: 1000;
+        display: flex; align-items: center; justify-content: center;
+      }
+      .modal-box {
+        background: white; border-radius: 8px;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.2);
+        padding: 20px; max-height: 90vh; overflow-y: auto;
+      }
+      ::-webkit-scrollbar { width: 6px; height: 6px; }
+      ::-webkit-scrollbar-track { background: #f1f1f1; }
+      ::-webkit-scrollbar-thumb { background: #bbb; border-radius: 3px; }
+      ::-webkit-scrollbar-thumb:hover { background: #999; }
+    </style>
+    <script type="module" crossorigin src="/quote-system/assets/index-CZ0EEoOA.js"></script>
+    <link rel="stylesheet" crossorigin href="/quote-system/assets/index-BvluXNMc.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

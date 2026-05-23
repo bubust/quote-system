@@ -1,0 +1,71 @@
+/* Base styles - Tailwind CDN is used in index.html */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background-color: #f5f5f5;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* Editable table cells */
+.editable-cell {
+  min-width: 40px;
+  outline: none;
+}
+.editable-cell:focus {
+  background: #E3F2FD;
+  box-shadow: inset 0 0 0 2px #1565C0;
+}
+
+/* Item buttons */
+.item-btn {
+  display: inline-block;
+  margin: 3px;
+  padding: 5px 10px;
+  background: #E3F2FD;
+  border: 1px solid #90CAF9;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.item-btn:hover {
+  background: #1565C0;
+  color: white;
+  border-color: #0D47A1;
+}
+.item-btn.selected {
+  background: #1565C0;
+  color: white;
+  border-color: #0D47A1;
+}
+
+/* Option chips */
+.option-chip {
+  display: inline-block;
+  margin: 2px;
+  padding: 2px 8px;
+  background: #FFF9C4;
+  border: 1px solid #F9A825;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 11px;
+  transition: all 0.15s;
+}
+.option-chip:hover {
+  background: #F9A825;
+  color: white;
+}
+.option-chip.active {
+  background: #F57F17;
+  color: white;
+  border-color: #E65100;
+}
