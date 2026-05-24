@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { listQuotes, renameQuote, deleteQuote, listLocalQuotes } from '../../lib/supabase.js'
+import { listQuotes, renameQuote, deleteQuote, listLocalQuotes, loadLocalQuote, deleteLocalQuote, saveQuote } from '../../lib/supabase.js'
 import { getRecentFileProjects, removeRecentFile, loadProjectFromFile } from '../../lib/fileStorage.js'
 
 export default function QuoteList({ onClose, onOpen, onOpenFileData }) {
@@ -9,12 +9,15 @@ export default function QuoteList({ onClose, onOpen, onOpenFileData }) {
   const [renameVal, setRenameVal] = useState('')
   const [msg, setMsg] = useState('')
   const [isLocal, setIsLocal] = useState(false)
+  const [localQuotes, setLocalQuotes] = useState([])
   const [recentFiles, setRecentFiles] = useState([])
   const [activeTab, setActiveTab] = useState('cloud') // 'cloud' | 'file'
+  const [uploading, setUploading] = useState({})
 
   useEffect(() => {
     loadList()
     setRecentFiles(getRecentFileProjects())
+    setLocalQuotes(listLocalQuotes())
   }, [])
 
   const loadList = async () => {
@@ -39,6 +42,27 @@ export default function QuoteList({ onClose, onOpen, onOpenFileData }) {
       }
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleUploadToCloud = async (localId) => {
+    setUploading(prev => ({ ...prev, [localId]: true }))
+    try {
+      const entry = loadLocalQuote(localId)
+      if (!entry) throw new Error('找不到本機資料')
+      const { quote, items } = entry
+      // 上傳到雲端（不帶原本的 local_ id，讓 Supabase 產生新 uuid）
+      const { id: _drop, ...quoteData } = quote
+      await saveQuote(quoteData, items.map(({ id: _i, quote_id: _q, ...rest }) => rest))
+      // 刪除本機
+      deleteLocalQuote(localId)
+      setLocalQuotes(listLocalQuotes())
+      loadList()
+      setMsg(`「${quote.project_name || '未命名'}」已上傳到雲端並從本機移除`)
+    } catch (e) {
+      setMsg('上傳失敗：' + e.message)
+    } finally {
+      setUploading(prev => ({ ...prev, [localId]: false }))
     }
   }
 
@@ -198,6 +222,43 @@ export default function QuoteList({ onClose, onOpen, onOpenFileData }) {
               </tbody>
             </table>
           )
+        )}
+
+        {/* 本機存檔區塊（雲端連線正常時顯示，供上傳用） */}
+        {activeTab === 'cloud' && !isLocal && localQuotes.length > 0 && (
+          <div style={{ marginTop: 16, border: '1px solid #FFB74D', borderRadius: 6, overflow: 'hidden' }}>
+            <div style={{ background: '#FFF3E0', padding: '6px 12px', fontSize: 13, fontWeight: 700, color: '#E65100', display: 'flex', alignItems: 'center', gap: 6 }}>
+              📦 本機存檔（尚未上傳至雲端）
+              <span style={{ fontSize: 11, fontWeight: 400, color: '#888', marginLeft: 4 }}>點「上傳」可同步到雲端</span>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>案名</th>
+                  <th>最後更新</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {localQuotes.map(q => (
+                  <tr key={q.id}>
+                    <td style={{ fontWeight: 600 }}>{q.project_name || '（未命名）'}</td>
+                    <td style={{ fontSize: 12, color: '#666' }}>{fmtDate(q.updated_at)}</td>
+                    <td>
+                      <button
+                        className="btn-blue"
+                        onClick={() => handleUploadToCloud(q.id)}
+                        disabled={uploading[q.id]}
+                        style={{ fontSize: 11 }}
+                      >
+                        {uploading[q.id] ? '上傳中...' : '☁️ 上傳到雲端'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
 
         {/* 檔案紀錄清單 */}

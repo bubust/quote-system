@@ -495,3 +495,9 @@ export function loadLocalQuote(id) {
   const all = getLocalAll()
   return all[id] || null
 }
+
+export function deleteLocalQuote(id) {
+  const all = getLocalAll()
+  delete all[id]
+  localStorage.setItem(LS_QUOTES_KEY, JSON.stringify(all))
+}
