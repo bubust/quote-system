@@ -105,7 +105,6 @@ export default function QuoteDisplay({ items, onUpdateItem, onDeleteItem, onMove
   })
 
   const grandTotal = items.reduce((s, i) => s + toNumber(i.total_price), 0)
-  let globalSeq = 1
 
   return (
     <div style={{ overflowX: 'auto', padding: '0 0 12px 0' }}>
@@ -128,6 +127,7 @@ export default function QuoteDisplay({ items, onUpdateItem, onDeleteItem, onMove
           {catOrder.map(cat => {
             const catItems = catMap[cat]
             const catTotal = catItems.reduce((s, i) => s + toNumber(i.total_price), 0)
+            let catSeq = 1
 
             return (
               <React.Fragment key={cat}>
@@ -148,7 +148,7 @@ export default function QuoteDisplay({ items, onUpdateItem, onDeleteItem, onMove
                 </tr>
 
                 {catItems.map((item, idx) => {
-                  const seq = item.is_sub_item ? null : globalSeq++
+                  const seq = item.is_sub_item ? null : catSeq++
                   return (
                     <tr key={item.id || idx} style={{ background: item.is_sub_item ? '#fafafa' : undefined }}>
                       <td style={{ textAlign: 'center', color: item.is_sub_item ? '#bbb' : undefined }}>
