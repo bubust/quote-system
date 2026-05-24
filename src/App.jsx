@@ -485,6 +485,25 @@ export default function App() {
     })
   }
 
+  // ── 移動整個大項目（連同所有子項一起） ──────────────────────────
+  const handleMoveCategory = (cat, direction) => {
+    setQuoteItems(prev => {
+      const catOrder = []
+      const catMap = {}
+      prev.forEach(item => {
+        const c = item.work_type || '其他'
+        if (!catMap[c]) { catMap[c] = []; catOrder.push(c) }
+        catMap[c].push(item)
+      })
+      const idx = catOrder.indexOf(cat)
+      const newIdx = idx + direction
+      if (newIdx < 0 || newIdx >= catOrder.length) return prev
+      const newOrder = [...catOrder]
+      ;[newOrder[idx], newOrder[newIdx]] = [newOrder[newIdx], newOrder[idx]]
+      return newOrder.flatMap(c => catMap[c])
+    })
+  }
+
   // ── 搬運費/拆除費/材料費新增到估價單 ──────────────────────────
   const handleAddTransportItems = async (items) => {
     const qId = currentQuote?.id
@@ -609,6 +628,7 @@ export default function App() {
           onUpdateItem={handleUpdateItem}
           onDeleteItem={handleDeleteItem}
           onMoveItem={handleMoveItem}
+          onMoveCategory={handleMoveCategory}
         />
       </div>
 

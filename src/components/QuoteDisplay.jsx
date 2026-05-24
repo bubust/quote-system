@@ -81,7 +81,7 @@ function EditableCell({ item, field, value, align = 'left', type = 'text', style
   )
 }
 
-export default function QuoteDisplay({ items, onUpdateItem, onDeleteItem, onMoveItem }) {
+export default function QuoteDisplay({ items, onUpdateItem, onDeleteItem, onMoveItem, onMoveCategory }) {
   const [deleteConfirm, setDeleteConfirm] = useState(null)
 
   if (!items || items.length === 0) {
@@ -132,7 +132,19 @@ export default function QuoteDisplay({ items, onUpdateItem, onDeleteItem, onMove
             return (
               <React.Fragment key={cat}>
                 <tr className="category-row">
-                  <td colSpan={10} style={{ paddingLeft: 10 }}>▶ {cat}</td>
+                  <td colSpan={9} style={{ paddingLeft: 10 }}>▶ {cat}</td>
+                  <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                    <button
+                      onClick={() => onMoveCategory(cat, -1)}
+                      title="大項上移"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: '0 2px', color: '#1565C0', fontWeight: 700 }}
+                    >▲</button>
+                    <button
+                      onClick={() => onMoveCategory(cat, 1)}
+                      title="大項下移"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: '0 2px', color: '#1565C0', fontWeight: 700 }}
+                    >▼</button>
+                  </td>
                 </tr>
 
                 {catItems.map((item, idx) => {
