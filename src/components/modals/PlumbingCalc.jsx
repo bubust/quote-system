@@ -3,10 +3,21 @@ import { formatNTD } from '../../lib/calculations.js'
 
 const LS_KEY = 'qs_plumbing_prices'
 
+// 一樓管線多，預設單價較高
 const DEFAULT_ITEMS = [
-  { id: 'elec',  name: '配置主要電力管線', unit: '層', defaultPrice: 60000 },
-  { id: 'weak',  name: '配置弱電管線',     unit: '層', defaultPrice: 15000 },
-  { id: 'pipe',  name: '配置冷、熱、污、排管線', unit: '套/區', defaultPrice: 43000 },
+  { id: 'elec_1f',  name: '配置主要電力管線', floor: '一樓',    unit: '層',   defaultPrice: 80000 },
+  { id: 'elec_2f',  name: '配置主要電力管線', floor: '二樓以上', unit: '層',   defaultPrice: 60000 },
+  { id: 'weak_1f',  name: '配置弱電管線',     floor: '一樓',    unit: '層',   defaultPrice: 20000 },
+  { id: 'weak_2f',  name: '配置弱電管線',     floor: '二樓以上', unit: '層',   defaultPrice: 15000 },
+  { id: 'pipe_1f',  name: '配置冷、熱、污、排管線', floor: '一樓',    unit: '套/區', defaultPrice: 60000 },
+  { id: 'pipe_2f',  name: '配置冷、熱、污、排管線', floor: '二樓以上', unit: '套/區', defaultPrice: 43000 },
+]
+
+// 用於顯示 rowspan 的分組
+const GROUPS = [
+  { name: '配置主要電力管線', ids: ['elec_1f', 'elec_2f'] },
+  { name: '配置弱電管線',     ids: ['weak_1f', 'weak_2f'] },
+  { name: '配置冷、熱、污、排管線', ids: ['pipe_1f', 'pipe_2f'] },
 ]
 
 function loadSavedPrices() {
@@ -30,7 +41,6 @@ export default function PlumbingCalc({ onClose, onAddToQuote }) {
   )
   const [profit, setProfit] = useState(20)
 
-  // 儲存單價到 localStorage
   useEffect(() => {
     const map = {}
     rows.forEach(r => { map[r.id] = r.price })
@@ -49,7 +59,6 @@ export default function PlumbingCalc({ onClose, onAddToQuote }) {
   }
 
   const handleNumInput = (id, field, val) => {
-    // 允許暫時保留空字串及小數點，讓使用者輸入中
     if (val === '' || val === '.' || /^\d*\.?\d*$/.test(val)) {
       setRowField(id, field, val)
     }
@@ -61,7 +70,7 @@ export default function PlumbingCalc({ onClose, onAddToQuote }) {
       .map(r => ({
         work_type: '水電工程',
         item_name: r.name,
-        floor_location: '',
+        floor_location: r.floor,
         unit_price: clamp(r.price),
         quantity: clamp(r.qty),
         unit: r.unit,
@@ -74,12 +83,17 @@ export default function PlumbingCalc({ onClose, onAddToQuote }) {
     onClose()
   }
 
+  const rowMap = Object.fromEntries(rows.map(r => [r.id, r]))
+
   const thStyle = { background: '#1565C0', color: '#fff', padding: '7px 10px', fontSize: 13, fontWeight: 600, textAlign: 'center' }
   const tdStyle = { padding: '7px 8px', fontSize: 13, borderBottom: '1px solid #e0e0e0' }
 
+  const floorBg = (floor) => floor === '一樓' ? '#FFF8E1' : '#F3F8FF'
+  const floorColor = (floor) => floor === '一樓' ? '#E65100' : '#1565C0'
+
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal-box" style={{ width: 680 }}>
+      <div className="modal-box" style={{ width: 700 }}>
 
         {/* 標題 */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -93,48 +107,63 @@ export default function PlumbingCalc({ onClose, onAddToQuote }) {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                <th style={{ ...thStyle, textAlign: 'left', width: '36%' }}>施工項目</th>
+                <th style={{ ...thStyle, textAlign: 'left', width: '30%' }}>施工項目</th>
+                <th style={{ ...thStyle, width: '13%' }}>樓層</th>
                 <th style={{ ...thStyle, width: '20%' }}>單價（元）</th>
-                <th style={{ ...thStyle, width: '14%' }}>數量</th>
+                <th style={{ ...thStyle, width: '12%' }}>數量</th>
                 <th style={{ ...thStyle, width: '10%' }}>單位</th>
-                <th style={{ ...thStyle, width: '20%' }}>小計</th>
+                <th style={{ ...thStyle, width: '15%' }}>小計</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map(r => {
-                const sub = clamp(r.price) * clamp(r.qty)
-                return (
-                  <tr key={r.id} style={{ background: clamp(r.qty) > 0 ? '#F3F8FF' : '#fff' }}>
-                    <td style={{ ...tdStyle, fontWeight: 600 }}>{r.name}</td>
-                    <td style={{ ...tdStyle, textAlign: 'center' }}>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        value={r.price}
-                        onChange={e => handleNumInput(r.id, 'price', e.target.value)}
-                        onBlur={e => setRowField(r.id, 'price', clamp(e.target.value) || 0)}
-                        style={{ width: '100%', textAlign: 'right', border: '1px solid #90CAF9', borderRadius: 4, padding: '3px 6px', fontSize: 13 }}
-                      />
-                    </td>
-                    <td style={{ ...tdStyle, textAlign: 'center' }}>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        value={r.qty}
-                        onChange={e => handleNumInput(r.id, 'qty', e.target.value)}
-                        onBlur={e => setRowField(r.id, 'qty', clamp(e.target.value) || 0)}
-                        style={{ width: '100%', textAlign: 'center', border: '1px solid #90CAF9', borderRadius: 4, padding: '3px 6px', fontSize: 13 }}
-                      />
-                    </td>
-                    <td style={{ ...tdStyle, textAlign: 'center', color: '#666' }}>{r.unit}</td>
-                    <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600, color: sub > 0 ? '#1565C0' : '#bbb' }}>
-                      {sub > 0 ? formatNTD(sub) : '—'}
-                    </td>
-                  </tr>
-                )
-              })}
+              {GROUPS.map(g => (
+                g.ids.map((id, idx) => {
+                  const r = rowMap[id]
+                  const sub = clamp(r.price) * clamp(r.qty)
+                  const is1F = r.floor === '一樓'
+                  return (
+                    <tr key={id} style={{ background: clamp(r.qty) > 0 ? (is1F ? '#FFF3CD' : '#E8F5E9') : floorBg(r.floor) }}>
+                      {idx === 0 && (
+                        <td rowSpan={2} style={{ ...tdStyle, fontWeight: 700, borderRight: '2px solid #e0e0e0', verticalAlign: 'middle', borderBottom: '2px solid #90CAF9' }}>
+                          {g.name}
+                        </td>
+                      )}
+                      <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 600, color: floorColor(r.floor), fontSize: 12, whiteSpace: 'nowrap' }}>
+                        {r.floor}
+                      </td>
+                      <td style={{ ...tdStyle, textAlign: 'center' }}>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={r.price}
+                          onChange={e => handleNumInput(id, 'price', e.target.value)}
+                          onBlur={e => setRowField(id, 'price', clamp(e.target.value) || 0)}
+                          style={{ width: '100%', textAlign: 'right', border: `1px solid ${is1F ? '#FFCC80' : '#90CAF9'}`, borderRadius: 4, padding: '3px 6px', fontSize: 13 }}
+                        />
+                      </td>
+                      <td style={{ ...tdStyle, textAlign: 'center' }}>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={r.qty}
+                          onChange={e => handleNumInput(id, 'qty', e.target.value)}
+                          onBlur={e => setRowField(id, 'qty', clamp(e.target.value) || 0)}
+                          style={{ width: '100%', textAlign: 'center', border: `1px solid ${is1F ? '#FFCC80' : '#90CAF9'}`, borderRadius: 4, padding: '3px 6px', fontSize: 13 }}
+                        />
+                      </td>
+                      <td style={{ ...tdStyle, textAlign: 'center', color: '#666', fontSize: 12 }}>{r.unit}</td>
+                      <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600, color: sub > 0 ? floorColor(r.floor) : '#bbb' }}>
+                        {sub > 0 ? formatNTD(sub) : '—'}
+                      </td>
+                    </tr>
+                  )
+                })
+              ))}
             </tbody>
           </table>
+          <div style={{ fontSize: 11, color: '#999', marginTop: 4 }}>
+            ※ 一樓因管線集中、工程量較多，預設單價較高；所有單價均可點擊修改
+          </div>
         </div>
 
         {/* 區塊 2：利潤設定 */}
@@ -177,9 +206,7 @@ export default function PlumbingCalc({ onClose, onAddToQuote }) {
         {/* 操作按鈕 */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
           <button className="btn-gray" onClick={onClose}>關閉</button>
-          <button className="btn-green" onClick={handleAddToQuote}>
-            ＋ 加入估價單
-          </button>
+          <button className="btn-green" onClick={handleAddToQuote}>＋ 加入估價單</button>
         </div>
       </div>
     </div>
