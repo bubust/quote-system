@@ -245,14 +245,27 @@ export default function QuoteList({ onClose, onOpen, onOpenFileData }) {
                     <td style={{ fontWeight: 600 }}>{q.project_name || '（未命名）'}</td>
                     <td style={{ fontSize: 12, color: '#666' }}>{fmtDate(q.updated_at)}</td>
                     <td>
-                      <button
-                        className="btn-blue"
-                        onClick={() => handleUploadToCloud(q.id)}
-                        disabled={uploading[q.id]}
-                        style={{ fontSize: 11 }}
-                      >
-                        {uploading[q.id] ? '上傳中...' : '☁️ 上傳到雲端'}
-                      </button>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <button
+                          className="btn-blue"
+                          onClick={() => handleUploadToCloud(q.id)}
+                          disabled={uploading[q.id]}
+                          style={{ fontSize: 11 }}
+                        >
+                          {uploading[q.id] ? '上傳中...' : '☁️ 上傳到雲端'}
+                        </button>
+                        <button
+                          className="btn-red"
+                          onClick={() => {
+                            if (!window.confirm(`確定刪除本機「${q.project_name || '未命名'}」？`)) return
+                            deleteLocalQuote(q.id)
+                            setLocalQuotes(listLocalQuotes())
+                          }}
+                          style={{ fontSize: 11 }}
+                        >
+                          刪除
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
