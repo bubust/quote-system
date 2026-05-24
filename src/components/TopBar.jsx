@@ -13,6 +13,7 @@ export default function TopBar({
   onExport,
   onMaterialList,
   onDemolition,
+  onPlumbing,
   projectName,
   isSaving,
 }) {
@@ -51,6 +52,9 @@ export default function TopBar({
       </button>
       <button className="btn-yellow" onClick={onTransport}>
         🚛 搬運費計算
+      </button>
+      <button className="btn-yellow" onClick={onPlumbing}>
+        ⚡ 水電施工費用計算
       </button>
 
       <div style={{ width: 1, height: 24, background: '#F9A825', margin: '0 4px' }} />

@@ -29,6 +29,7 @@ import ExportModal from './components/modals/ExportModal.jsx'
 import QuoteList from './components/modals/QuoteList.jsx'
 import DemolitionCalc from './components/modals/DemolitionCalc.jsx'
 import MaterialList from './components/modals/MaterialList.jsx'
+import PlumbingCalc from './components/modals/PlumbingCalc.jsx'
 
 const EMPTY_PROJECT = { project_name: '', address: '', renovation_type: '' }
 const EMPTY_INPUT = {
@@ -67,6 +68,7 @@ export default function App() {
   const [showQuoteList, setShowQuoteList] = useState(false)
   const [showMaterialList, setShowMaterialList] = useState(false)
   const [showDemolition, setShowDemolition] = useState(false)
+  const [showPlumbing, setShowPlumbing] = useState(false)
 
   // ── 初始化 ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -552,6 +554,7 @@ export default function App() {
         onExport={() => setShowExport(true)}
         onMaterialList={() => setShowMaterialList(true)}
         onDemolition={() => setShowDemolition(true)}
+        onPlumbing={() => setShowPlumbing(true)}
         projectName={projectData.project_name}
         isSaving={isSaving}
       />
@@ -692,6 +695,12 @@ export default function App() {
       {showDemolition && (
         <DemolitionCalc
           onClose={() => setShowDemolition(false)}
+          onAddToQuote={handleAddTransportItems}
+        />
+      )}
+      {showPlumbing && (
+        <PlumbingCalc
+          onClose={() => setShowPlumbing(false)}
           onAddToQuote={handleAddTransportItems}
         />
       )}
