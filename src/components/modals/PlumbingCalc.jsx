@@ -3,21 +3,46 @@ import { formatNTD } from '../../lib/calculations.js'
 
 const LS_KEY = 'qs_plumbing_prices'
 
-// 一樓管線多，預設單價較高
 const DEFAULT_ITEMS = [
-  { id: 'elec_1f',  name: '配置主要電力管線', floor: '一樓',    unit: '層',   defaultPrice: 80000 },
-  { id: 'elec_2f',  name: '配置主要電力管線', floor: '二樓以上', unit: '層',   defaultPrice: 60000 },
-  { id: 'weak_1f',  name: '配置弱電管線',     floor: '一樓',    unit: '層',   defaultPrice: 20000 },
-  { id: 'weak_2f',  name: '配置弱電管線',     floor: '二樓以上', unit: '層',   defaultPrice: 15000 },
-  { id: 'pipe_1f',  name: '配置冷、熱、污、排管線', floor: '一樓',    unit: '套/區', defaultPrice: 60000 },
-  { id: 'pipe_2f',  name: '配置冷、熱、污、排管線', floor: '二樓以上', unit: '套/區', defaultPrice: 43000 },
+  {
+    id: 'elec_1f',  name: '配置主要電力管線', floor: '一樓',
+    unit: '層', defaultPrice: 60000, note: '',
+  },
+  {
+    id: 'elec_2f',  name: '配置主要電力管線', floor: '二樓以上',
+    unit: '層', defaultPrice: 60000, note: '',
+  },
+  {
+    id: 'weak_1f',  name: '配置弱電管線', floor: '一樓',
+    unit: '層', defaultPrice: 15000, note: '',
+  },
+  {
+    id: 'weak_2f',  name: '配置弱電管線', floor: '二樓以上',
+    unit: '層', defaultPrice: 15000, note: '',
+  },
+  {
+    id: 'main_1f',  name: '配置冷、熱、污、排管線 — 主系統管線', floor: '一樓',
+    unit: '案/式', defaultPrice: 34000, note: '含廚房水路與全案地下幹管連通',
+  },
+  {
+    id: 'main_2f',  name: '配置冷、熱、污、排管線 — 主系統管線', floor: '二樓以上',
+    unit: '案/式', defaultPrice: 34000, note: '含廚房水路與全案地下幹管連通',
+  },
+  {
+    id: 'bath_1f',  name: '配置冷、熱、污、排管線 — 廁所管線', floor: '一樓',
+    unit: '間', defaultPrice: 25500, note: '',
+  },
+  {
+    id: 'bath_2f',  name: '配置冷、熱、污、排管線 — 廁所管線', floor: '二樓以上',
+    unit: '間', defaultPrice: 25500, note: '',
+  },
 ]
 
-// 用於顯示 rowspan 的分組
 const GROUPS = [
-  { name: '配置主要電力管線', ids: ['elec_1f', 'elec_2f'] },
-  { name: '配置弱電管線',     ids: ['weak_1f', 'weak_2f'] },
-  { name: '配置冷、熱、污、排管線', ids: ['pipe_1f', 'pipe_2f'] },
+  { label: '配置主要電力管線',                ids: ['elec_1f', 'elec_2f'] },
+  { label: '配置弱電管線',                    ids: ['weak_1f', 'weak_2f'] },
+  { label: '配置冷熱污排 — 主系統管線',        ids: ['main_1f', 'main_2f'] },
+  { label: '配置冷熱污排 — 廁所管線',          ids: ['bath_1f', 'bath_2f'] },
 ]
 
 function loadSavedPrices() {
@@ -59,9 +84,7 @@ export default function PlumbingCalc({ onClose, onAddToQuote }) {
   }
 
   const handleNumInput = (id, field, val) => {
-    if (val === '' || val === '.' || /^\d*\.?\d*$/.test(val)) {
-      setRowField(id, field, val)
-    }
+    if (val === '' || val === '.' || /^\d*\.?\d*$/.test(val)) setRowField(id, field, val)
   }
 
   const handleAddToQuote = () => {
@@ -75,7 +98,7 @@ export default function PlumbingCalc({ onClose, onAddToQuote }) {
         quantity: clamp(r.qty),
         unit: r.unit,
         total_price: clamp(r.price) * clamp(r.qty),
-        notes: '',
+        notes: r.note || '',
         is_sub_item: false,
       }))
     if (items.length === 0) { alert('請至少輸入一項數量'); return }
@@ -85,15 +108,15 @@ export default function PlumbingCalc({ onClose, onAddToQuote }) {
 
   const rowMap = Object.fromEntries(rows.map(r => [r.id, r]))
 
-  const thStyle = { background: '#1565C0', color: '#fff', padding: '7px 10px', fontSize: 13, fontWeight: 600, textAlign: 'center' }
+  const thStyle = {
+    background: '#1565C0', color: '#fff',
+    padding: '7px 10px', fontSize: 13, fontWeight: 600, textAlign: 'center',
+  }
   const tdStyle = { padding: '7px 8px', fontSize: 13, borderBottom: '1px solid #e0e0e0' }
-
-  const floorBg = (floor) => floor === '一樓' ? '#FFF8E1' : '#F3F8FF'
-  const floorColor = (floor) => floor === '一樓' ? '#E65100' : '#1565C0'
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal-box" style={{ width: 700 }}>
+      <div className="modal-box" style={{ width: 760 }}>
 
         {/* 標題 */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -108,53 +131,83 @@ export default function PlumbingCalc({ onClose, onAddToQuote }) {
             <thead>
               <tr>
                 <th style={{ ...thStyle, textAlign: 'left', width: '30%' }}>施工項目</th>
-                <th style={{ ...thStyle, width: '13%' }}>樓層</th>
-                <th style={{ ...thStyle, width: '20%' }}>單價（元）</th>
-                <th style={{ ...thStyle, width: '12%' }}>數量</th>
+                <th style={{ ...thStyle, width: '12%' }}>樓層</th>
+                <th style={{ ...thStyle, width: '18%' }}>單價（元）</th>
+                <th style={{ ...thStyle, width: '10%' }}>數量</th>
                 <th style={{ ...thStyle, width: '10%' }}>單位</th>
-                <th style={{ ...thStyle, width: '15%' }}>小計</th>
+                <th style={{ ...thStyle, width: '20%' }}>備註</th>
               </tr>
             </thead>
             <tbody>
-              {GROUPS.map(g => (
+              {GROUPS.map((g, gi) => (
                 g.ids.map((id, idx) => {
                   const r = rowMap[id]
                   const sub = clamp(r.price) * clamp(r.qty)
                   const is1F = r.floor === '一樓'
+                  const rowBg = clamp(r.qty) > 0
+                    ? (is1F ? '#FFF3CD' : '#E8F5E9')
+                    : (is1F ? '#FFFDE7' : '#F3F8FF')
+                  const borderBot = idx === 0
+                    ? '1px dashed #BBDEFB'
+                    : (gi < GROUPS.length - 1 ? '2px solid #90CAF9' : '1px solid #e0e0e0')
+
                   return (
-                    <tr key={id} style={{ background: clamp(r.qty) > 0 ? (is1F ? '#FFF3CD' : '#E8F5E9') : floorBg(r.floor) }}>
+                    <tr key={id} style={{ background: rowBg }}>
                       {idx === 0 && (
-                        <td rowSpan={2} style={{ ...tdStyle, fontWeight: 700, borderRight: '2px solid #e0e0e0', verticalAlign: 'middle', borderBottom: '2px solid #90CAF9' }}>
-                          {g.name}
+                        <td
+                          rowSpan={2}
+                          style={{
+                            ...tdStyle,
+                            fontWeight: 700,
+                            fontSize: 12,
+                            borderRight: '2px solid #BBDEFB',
+                            borderBottom: '2px solid #90CAF9',
+                            verticalAlign: 'middle',
+                          }}
+                        >
+                          {g.label}
                         </td>
                       )}
-                      <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 600, color: floorColor(r.floor), fontSize: 12, whiteSpace: 'nowrap' }}>
+                      <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 700, fontSize: 12, whiteSpace: 'nowrap', color: is1F ? '#E65100' : '#1565C0', borderBottom: borderBot }}>
                         {r.floor}
                       </td>
-                      <td style={{ ...tdStyle, textAlign: 'center' }}>
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          value={r.price}
-                          onChange={e => handleNumInput(id, 'price', e.target.value)}
-                          onBlur={e => setRowField(id, 'price', clamp(e.target.value) || 0)}
-                          style={{ width: '100%', textAlign: 'right', border: `1px solid ${is1F ? '#FFCC80' : '#90CAF9'}`, borderRadius: 4, padding: '3px 6px', fontSize: 13 }}
-                        />
+                      <td style={{ ...tdStyle, textAlign: 'center', borderBottom: borderBot }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={r.price}
+                            onChange={e => handleNumInput(id, 'price', e.target.value)}
+                            onBlur={e => setRowField(id, 'price', clamp(e.target.value) || 0)}
+                            style={{
+                              flex: 1, textAlign: 'right',
+                              border: `1px solid ${is1F ? '#FFCC80' : '#90CAF9'}`,
+                              borderRadius: 4, padding: '3px 6px', fontSize: 13,
+                            }}
+                          />
+                          {sub > 0 && (
+                            <span style={{ fontSize: 11, color: is1F ? '#E65100' : '#1565C0', whiteSpace: 'nowrap', fontWeight: 600 }}>
+                              ={formatNTD(sub)}
+                            </span>
+                          )}
+                        </div>
                       </td>
-                      <td style={{ ...tdStyle, textAlign: 'center' }}>
+                      <td style={{ ...tdStyle, textAlign: 'center', borderBottom: borderBot }}>
                         <input
                           type="text"
                           inputMode="decimal"
                           value={r.qty}
                           onChange={e => handleNumInput(id, 'qty', e.target.value)}
                           onBlur={e => setRowField(id, 'qty', clamp(e.target.value) || 0)}
-                          style={{ width: '100%', textAlign: 'center', border: `1px solid ${is1F ? '#FFCC80' : '#90CAF9'}`, borderRadius: 4, padding: '3px 6px', fontSize: 13 }}
+                          style={{
+                            width: '100%', textAlign: 'center',
+                            border: `1px solid ${is1F ? '#FFCC80' : '#90CAF9'}`,
+                            borderRadius: 4, padding: '3px 6px', fontSize: 13,
+                          }}
                         />
                       </td>
-                      <td style={{ ...tdStyle, textAlign: 'center', color: '#666', fontSize: 12 }}>{r.unit}</td>
-                      <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600, color: sub > 0 ? floorColor(r.floor) : '#bbb' }}>
-                        {sub > 0 ? formatNTD(sub) : '—'}
-                      </td>
+                      <td style={{ ...tdStyle, textAlign: 'center', color: '#666', fontSize: 12, borderBottom: borderBot }}>{r.unit}</td>
+                      <td style={{ ...tdStyle, fontSize: 11, color: '#888', borderBottom: borderBot }}>{r.note || ''}</td>
                     </tr>
                   )
                 })
@@ -162,7 +215,7 @@ export default function PlumbingCalc({ onClose, onAddToQuote }) {
             </tbody>
           </table>
           <div style={{ fontSize: 11, color: '#999', marginTop: 4 }}>
-            ※ 一樓因管線集中、工程量較多，預設單價較高；所有單價均可點擊修改
+            ※ 一樓管線集中複雜，建議視實際情況調高一樓單價；所有欄位均可點擊修改
           </div>
         </div>
 
@@ -174,10 +227,7 @@ export default function PlumbingCalc({ onClose, onAddToQuote }) {
             type="text"
             inputMode="decimal"
             value={profit}
-            onChange={e => {
-              const v = e.target.value
-              if (v === '' || /^\d*\.?\d*$/.test(v)) setProfit(v)
-            }}
+            onChange={e => { const v = e.target.value; if (v === '' || /^\d*\.?\d*$/.test(v)) setProfit(v) }}
             onBlur={e => setProfit(clamp(e.target.value))}
             style={{ width: 80, textAlign: 'center', border: '1px solid #F9A825', borderRadius: 4, padding: '4px 8px', fontSize: 14, fontWeight: 700 }}
           />
