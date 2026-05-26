@@ -98,9 +98,9 @@ function ItemDetailModal({ item, allItems, onUpdateItem, onDeleteItem, onClose }
     onUpdateItem(item.id, { quantity: qty, total_price: total })
   }
 
-  function startEdit(sub) {
+  function startEdit(sub, focusField = 'item_name') {
     setEditingId(sub.id)
-    setEditVals({ item_name: sub.item_name, quantity: String(sub.quantity), notes: sub.notes || '' })
+    setEditVals({ item_name: sub.item_name, quantity: String(sub.quantity), notes: sub.notes || '', _focus: focusField })
   }
 
   function commitEdit(sub) {
@@ -156,14 +156,14 @@ function ItemDetailModal({ item, allItems, onUpdateItem, onDeleteItem, onClose }
                   {editingId === sub.id ? (
                     <>
                       <td style={tdStyle}>
-                        <input autoFocus value={editVals.item_name} onChange={e => setEditVals(v => ({ ...v, item_name: e.target.value }))}
+                        <input autoFocus={editVals._focus !== 'notes'} value={editVals.item_name} onChange={e => setEditVals(v => ({ ...v, item_name: e.target.value }))}
                           onKeyDown={e => { if (e.key === 'Enter') commitEdit(sub); if (e.key === 'Escape') setEditingId(null) }}
                           style={{ ...inputStyle, width: 110 }} />
                       </td>
                       <td style={tdStyle}>
-                        <input value={editVals.notes} onChange={e => setEditVals(v => ({ ...v, notes: e.target.value }))}
+                        <input autoFocus={editVals._focus === 'notes'} value={editVals.notes} onChange={e => setEditVals(v => ({ ...v, notes: e.target.value }))}
                           onKeyDown={e => { if (e.key === 'Enter') commitEdit(sub); if (e.key === 'Escape') setEditingId(null) }}
-                          placeholder="備註" style={{ ...inputStyle, width: 80 }} />
+                          placeholder="備註" style={{ ...inputStyle, width: 120 }} />
                       </td>
                       <td style={{ ...tdStyle, textAlign: 'right' }}>
                         <input type="number" value={editVals.quantity} onChange={e => setEditVals(v => ({ ...v, quantity: e.target.value }))}
@@ -181,7 +181,7 @@ function ItemDetailModal({ item, allItems, onUpdateItem, onDeleteItem, onClose }
                   ) : (
                     <>
                       <td style={{ ...tdStyle, cursor: 'text' }} onClick={() => startEdit(sub)}>{sub.item_name}</td>
-                      <td style={{ ...tdStyle, cursor: 'text', color: '#888' }} onClick={() => startEdit(sub)}>{sub.notes || ''}</td>
+                      <td style={{ ...tdStyle, cursor: 'text', color: sub.notes ? '#555' : '#bbb' }} onClick={() => startEdit(sub, 'notes')}>{sub.notes || '點擊輸入'}</td>
                       <td style={{ ...tdStyle, textAlign: 'right', cursor: 'text' }} onClick={() => startEdit(sub)}>{sub.quantity} {sub.unit}</td>
                       <td style={{ ...tdStyle, textAlign: 'right', color: '#999' }}>{formatNTD(sub.unit_price)}</td>
                       <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600, color: '#1565C0' }}>{formatNTD(sub.total_price)}</td>
