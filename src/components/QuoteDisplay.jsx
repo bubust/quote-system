@@ -173,10 +173,13 @@ export default function QuoteDisplay({ items, onUpdateItem, onDeleteItem, onMove
     )
   }
 
+  // 主表格只顯示非子項目（子項目僅在「細項」Modal 中顯示）
+  const visibleItems = items.filter(i => !i.is_sub_item)
+
   // 依 work_type 分組（保持原始順序）
   const catOrder = []
   const catMap = {}
-  items.forEach(item => {
+  visibleItems.forEach(item => {
     const cat = item.work_type || '其他'
     if (!catMap[cat]) {
       catMap[cat] = []
@@ -185,7 +188,7 @@ export default function QuoteDisplay({ items, onUpdateItem, onDeleteItem, onMove
     catMap[cat].push(item)
   })
 
-  const grandTotal = items.reduce((s, i) => s + toNumber(i.total_price), 0)
+  const grandTotal = visibleItems.reduce((s, i) => s + toNumber(i.total_price), 0)
 
   return (
     <div style={{ overflowX: 'auto', padding: '0 0 12px 0' }}>
