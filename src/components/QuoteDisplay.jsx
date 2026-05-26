@@ -81,8 +81,55 @@ function EditableCell({ item, field, value, align = 'left', type = 'text', style
   )
 }
 
+// 細項清單 Modal
+function ItemDetailModal({ item, onClose }) {
+  const notes = item.notes || ''
+  // 以頓號、逗號、換行分割
+  const lines = notes.split(/[、，,\n]/).map(s => s.trim()).filter(Boolean)
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
+        zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: '#fff', borderRadius: 10, padding: '24px 28px',
+          minWidth: 280, maxWidth: 420, width: '90%', boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <div>
+            <div style={{ fontSize: 11, color: '#888', marginBottom: 2 }}>{item.floor_location} · {item.work_type}</div>
+            <div style={{ fontWeight: 700, fontSize: 16 }}>{item.item_name}</div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#aaa', lineHeight: 1 }}
+          >✕</button>
+        </div>
+
+        {lines.length === 0 ? (
+          <div style={{ color: '#aaa', fontSize: 13 }}>（無細項說明）</div>
+        ) : (
+          <ol style={{ margin: 0, paddingLeft: 22, lineHeight: 2 }}>
+            {lines.map((line, i) => (
+              <li key={i} style={{ fontSize: 14, color: '#333' }}>{line}</li>
+            ))}
+          </ol>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function QuoteDisplay({ items, onUpdateItem, onDeleteItem, onMoveItem, onMoveCategory }) {
   const [deleteConfirm, setDeleteConfirm] = useState(null)
+  const [detailItem, setDetailItem] = useState(null)
 
   if (!items || items.length === 0) {
     return (
@@ -108,6 +155,7 @@ export default function QuoteDisplay({ items, onUpdateItem, onDeleteItem, onMove
 
   return (
     <div style={{ overflowX: 'auto', padding: '0 0 12px 0' }}>
+      {detailItem && <ItemDetailModal item={detailItem} onClose={() => setDetailItem(null)} />}
       <table style={{ minWidth: 900 }}>
         <thead>
           <tr>
@@ -166,6 +214,17 @@ export default function QuoteDisplay({ items, onUpdateItem, onDeleteItem, onMove
                       <EditableCell item={item} field="total_price" value={item.total_price} align="right" type="number" onSave={onUpdateItem} />
                       <EditableCell item={item} field="notes" value={item.notes} onSave={onUpdateItem} />
                       <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                        {!item.is_sub_item && (
+                          <button
+                            onClick={() => setDetailItem(item)}
+                            title="查看細項"
+                            style={{
+                              background: '#E3F2FD', border: '1px solid #90CAF9',
+                              borderRadius: 4, cursor: 'pointer', fontSize: 11, padding: '1px 5px',
+                              color: '#1565C0', marginRight: 3, lineHeight: 1.6,
+                            }}
+                          >細項</button>
+                        )}
                         <button
                           onClick={() => onMoveItem(item.id, -1)}
                           title="上移"
