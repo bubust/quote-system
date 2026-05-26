@@ -217,7 +217,7 @@ function ItemDetailModal({ item, allItems, onUpdateItem, onDeleteItem, onClose }
   )
 }
 
-export default function QuoteDisplay({ items, onUpdateItem, onDeleteItem, onMoveItem, onMoveCategory }) {
+export default function QuoteDisplay({ items, onUpdateItem, onDeleteItem, onMoveItem, onMoveCategory, onDuplicateItem }) {
   const [deleteConfirm, setDeleteConfirm] = useState(null)
   const [detailItem, setDetailItem] = useState(null)
 
@@ -308,15 +308,26 @@ export default function QuoteDisplay({ items, onUpdateItem, onDeleteItem, onMove
                       <EditableCell item={item} field="notes" value={item.notes} onSave={onUpdateItem} />
                       <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                         {!item.is_sub_item && (
-                          <button
-                            onClick={() => setDetailItem(item)}
-                            title="查看細項"
-                            style={{
-                              background: '#E3F2FD', border: '1px solid #90CAF9',
-                              borderRadius: 4, cursor: 'pointer', fontSize: 11, padding: '1px 5px',
-                              color: '#1565C0', marginRight: 3, lineHeight: 1.6,
-                            }}
-                          >細項</button>
+                          <>
+                            <button
+                              onClick={() => setDetailItem(item)}
+                              title="查看細項"
+                              style={{
+                                background: '#E3F2FD', border: '1px solid #90CAF9',
+                                borderRadius: 4, cursor: 'pointer', fontSize: 11, padding: '1px 5px',
+                                color: '#1565C0', marginRight: 2, lineHeight: 1.6,
+                              }}
+                            >細項</button>
+                            <button
+                              onClick={() => onDuplicateItem(item.id)}
+                              title="複製此項"
+                              style={{
+                                background: '#F3E5F5', border: '1px solid #CE93D8',
+                                borderRadius: 4, cursor: 'pointer', fontSize: 11, padding: '1px 5px',
+                                color: '#6A1B9A', marginRight: 2, lineHeight: 1.6,
+                              }}
+                            >複製</button>
+                          </>
                         )}
                         <button
                           onClick={() => onMoveItem(item.id, -1)}

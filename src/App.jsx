@@ -517,6 +517,36 @@ export default function App() {
     }
   }
 
+  // ── 複製估價單明細（含子項目） ──────────────────────────────────
+  const handleDuplicateItem = async (id) => {
+    const item = quoteItems.find(i => i.id === id)
+    if (!item) return
+    const qId = currentQuote?.id
+    const newParentId = crypto.randomUUID ? crypto.randomUUID() : `local_dup_${Date.now()}`
+    const subItems = quoteItems.filter(i => i.parent_id === id)
+    const newParent = { ...item, id: newParentId, quote_id: qId }
+    const newSubs = subItems.map((sub, idx) => ({
+      ...sub,
+      id: crypto.randomUUID ? crypto.randomUUID() : `local_dup_sub_${Date.now()}_${idx}`,
+      parent_id: newParentId,
+      quote_id: qId,
+    }))
+    setQuoteItems(prev => {
+      const idx = prev.findIndex(i => i.id === id)
+      let insertAt = idx + 1
+      while (insertAt < prev.length && prev[insertAt].parent_id === id) insertAt++
+      const arr = [...prev]
+      arr.splice(insertAt, 0, newParent, ...newSubs)
+      return arr
+    })
+    if (qId) {
+      try { await addQuoteItem({ ...newParent, quote_id: qId }) } catch (e) { console.warn(e.message) }
+      for (const sub of newSubs) {
+        try { await addQuoteItem({ ...sub, quote_id: qId }) } catch (e) { console.warn(e.message) }
+      }
+    }
+  }
+
   // ── 移動估價單明細 ──────────────────────────────────────────────
   const handleMoveItem = (id, direction) => {
     setQuoteItems(prev => {
@@ -675,6 +705,7 @@ export default function App() {
           onDeleteItem={handleDeleteItem}
           onMoveItem={handleMoveItem}
           onMoveCategory={handleMoveCategory}
+          onDuplicateItem={handleDuplicateItem}
         />
       </div>
 
