@@ -81,81 +81,137 @@ function EditableCell({ item, field, value, align = 'left', type = 'text', style
   )
 }
 
-// 細項清單 Modal
-function ItemDetailModal({ item, allItems, onClose }) {
+// 細項清單 Modal（含編輯／刪除）
+function ItemDetailModal({ item, allItems, onUpdateItem, onDeleteItem, onClose }) {
+  const [editingId, setEditingId] = useState(null)
+  const [editVals, setEditVals] = useState({})
+
   const subItems = allItems.filter(i => i.parent_id === item.id)
-  const notes = item.notes || ''
+  const parent = allItems.find(i => i.id === item.id) || item
+
+  const notes = parent.notes || ''
   const lines = notes.split(/[、，,\n]/).map(s => s.trim()).filter(Boolean)
 
-  const thStyle = { textAlign: 'right', padding: '4px 8px', color: '#555', fontWeight: 600, borderBottom: '1px solid #ddd', whiteSpace: 'nowrap' }
-  const tdStyle = { textAlign: 'right', padding: '4px 8px', borderBottom: '1px solid #f0f0f0' }
+  function recalcParent(updatedSubs) {
+    const qty = Math.round(updatedSubs.reduce((s, i) => s + toNumber(i.quantity), 0) * 100) / 100
+    const total = Math.round(updatedSubs.reduce((s, i) => s + toNumber(i.total_price), 0) * 100) / 100
+    onUpdateItem(item.id, { quantity: qty, total_price: total })
+  }
+
+  function startEdit(sub) {
+    setEditingId(sub.id)
+    setEditVals({ item_name: sub.item_name, quantity: String(sub.quantity), notes: sub.notes || '' })
+  }
+
+  function commitEdit(sub) {
+    const qty = Math.round((parseFloat(editVals.quantity) || toNumber(sub.quantity)) * 100) / 100
+    const total = Math.round(qty * toNumber(sub.unit_price) * 100) / 100
+    const updates = { item_name: editVals.item_name, quantity: qty, notes: editVals.notes, total_price: total }
+    onUpdateItem(sub.id, updates)
+    const updated = subItems.map(s => s.id === sub.id ? { ...s, ...updates } : s)
+    recalcParent(updated)
+    setEditingId(null)
+  }
+
+  function handleDelete(sub) {
+    if (!window.confirm('確定刪除此細項？')) return
+    onDeleteItem(sub.id)
+    const remaining = subItems.filter(s => s.id !== sub.id)
+    recalcParent(remaining)
+  }
+
+  const inputStyle = { width: '100%', border: 'none', outline: '1px solid #1565C0', fontSize: 12, padding: '1px 3px', background: '#fff', borderRadius: 2 }
+  const thStyle = { padding: '5px 6px', color: '#fff', background: '#1565C0', fontWeight: 600, whiteSpace: 'nowrap', fontSize: 12 }
+  const tdStyle = { padding: '5px 6px', borderBottom: '1px solid #f0f0f0', fontSize: 13 }
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
-        zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}
-    >
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{
-          background: '#fff', borderRadius: 10, padding: '20px 24px',
-          minWidth: 320, maxWidth: 520, width: '95%', boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-        }}
-      >
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 10, padding: '20px 24px', minWidth: 360, maxWidth: 640, width: '96%', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
           <div>
-            <div style={{ fontSize: 11, color: '#888', marginBottom: 2 }}>{item.floor_location} · {item.work_type}</div>
-            <div style={{ fontWeight: 700, fontSize: 16 }}>{item.item_name}</div>
+            <div style={{ fontSize: 11, color: '#888', marginBottom: 2 }}>{parent.floor_location} · {parent.work_type}</div>
+            <div style={{ fontWeight: 700, fontSize: 16 }}>{parent.item_name}</div>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#aaa', lineHeight: 1 }}>✕</button>
         </div>
 
         {subItems.length > 0 ? (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                <th style={{ ...thStyle, textAlign: 'center', width: 30 }}>項</th>
+                <th style={{ ...thStyle, textAlign: 'center', width: 28 }}>項</th>
                 <th style={{ ...thStyle, textAlign: 'left' }}>尺寸</th>
-                <th style={thStyle}>數量</th>
-                <th style={thStyle}>單價</th>
-                <th style={thStyle}>小計</th>
+                <th style={{ ...thStyle, textAlign: 'left' }}>備註</th>
+                <th style={{ ...thStyle, textAlign: 'right' }}>數量</th>
+                <th style={{ ...thStyle, textAlign: 'right' }}>單價</th>
+                <th style={{ ...thStyle, textAlign: 'right' }}>小計</th>
+                <th style={{ ...thStyle, textAlign: 'center', width: 28 }}></th>
               </tr>
             </thead>
             <tbody>
               {subItems.map((sub, i) => (
-                <tr key={sub.id}>
+                <tr key={sub.id} style={{ background: editingId === sub.id ? '#E3F2FD' : undefined }}>
                   <td style={{ ...tdStyle, textAlign: 'center', color: '#999' }}>{i + 1}</td>
-                  <td style={{ ...tdStyle, textAlign: 'left' }}>
-                    {sub.item_name}
-                    {sub.notes ? <span style={{ color: '#888', marginLeft: 4 }}>({sub.notes})</span> : ''}
-                  </td>
-                  <td style={tdStyle}>{sub.quantity} {sub.unit}</td>
-                  <td style={tdStyle}>{formatNTD(sub.unit_price)}</td>
-                  <td style={{ ...tdStyle, fontWeight: 600, color: '#1565C0' }}>{formatNTD(sub.total_price)}</td>
+
+                  {editingId === sub.id ? (
+                    <>
+                      <td style={tdStyle}>
+                        <input autoFocus value={editVals.item_name} onChange={e => setEditVals(v => ({ ...v, item_name: e.target.value }))}
+                          onKeyDown={e => { if (e.key === 'Enter') commitEdit(sub); if (e.key === 'Escape') setEditingId(null) }}
+                          style={{ ...inputStyle, width: 110 }} />
+                      </td>
+                      <td style={tdStyle}>
+                        <input value={editVals.notes} onChange={e => setEditVals(v => ({ ...v, notes: e.target.value }))}
+                          onKeyDown={e => { if (e.key === 'Enter') commitEdit(sub); if (e.key === 'Escape') setEditingId(null) }}
+                          placeholder="備註" style={{ ...inputStyle, width: 80 }} />
+                      </td>
+                      <td style={{ ...tdStyle, textAlign: 'right' }}>
+                        <input type="number" value={editVals.quantity} onChange={e => setEditVals(v => ({ ...v, quantity: e.target.value }))}
+                          onKeyDown={e => { if (e.key === 'Enter') commitEdit(sub); if (e.key === 'Escape') setEditingId(null) }}
+                          style={{ ...inputStyle, width: 60, textAlign: 'right' }} />
+                      </td>
+                      <td style={{ ...tdStyle, textAlign: 'right', color: '#999' }}>{formatNTD(sub.unit_price)}</td>
+                      <td style={{ ...tdStyle, textAlign: 'right', color: '#1565C0', fontWeight: 600 }}>
+                        {formatNTD(Math.round((parseFloat(editVals.quantity) || 0) * toNumber(sub.unit_price) * 100) / 100)}
+                      </td>
+                      <td style={{ ...tdStyle, textAlign: 'center' }}>
+                        <button onClick={() => commitEdit(sub)} style={{ background: '#1565C0', color: '#fff', border: 'none', borderRadius: 3, cursor: 'pointer', fontSize: 11, padding: '2px 6px' }}>✓</button>
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td style={{ ...tdStyle, cursor: 'text' }} onClick={() => startEdit(sub)}>{sub.item_name}</td>
+                      <td style={{ ...tdStyle, cursor: 'text', color: '#888' }} onClick={() => startEdit(sub)}>{sub.notes || ''}</td>
+                      <td style={{ ...tdStyle, textAlign: 'right', cursor: 'text' }} onClick={() => startEdit(sub)}>{sub.quantity} {sub.unit}</td>
+                      <td style={{ ...tdStyle, textAlign: 'right', color: '#999' }}>{formatNTD(sub.unit_price)}</td>
+                      <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600, color: '#1565C0' }}>{formatNTD(sub.total_price)}</td>
+                      <td style={{ ...tdStyle, textAlign: 'center' }}>
+                        <button onClick={() => handleDelete(sub)} title="刪除" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#f44336', fontSize: 14, lineHeight: 1 }}>✕</button>
+                      </td>
+                    </>
+                  )}
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr style={{ borderTop: '2px solid #ccc', fontWeight: 700 }}>
-                <td colSpan={2} style={{ textAlign: 'right', padding: '6px 8px', color: '#333' }}>合計</td>
-                <td style={{ textAlign: 'right', padding: '6px 8px' }}>{item.quantity} {item.unit}</td>
+                <td colSpan={3} style={{ textAlign: 'right', padding: '6px 6px', color: '#333' }}>合計</td>
+                <td style={{ textAlign: 'right', padding: '6px 6px' }}>{parent.quantity} {parent.unit}</td>
                 <td />
-                <td style={{ textAlign: 'right', padding: '6px 8px', color: '#E65100' }}>{formatNTD(item.total_price)}</td>
+                <td style={{ textAlign: 'right', padding: '6px 6px', color: '#E65100' }}>{formatNTD(parent.total_price)}</td>
+                <td />
               </tr>
             </tfoot>
           </table>
         ) : lines.length > 0 ? (
           <ol style={{ margin: 0, paddingLeft: 22, lineHeight: 2 }}>
-            {lines.map((line, i) => (
-              <li key={i} style={{ fontSize: 14, color: '#333' }}>{line}</li>
-            ))}
+            {lines.map((line, i) => <li key={i} style={{ fontSize: 14, color: '#333' }}>{line}</li>)}
           </ol>
         ) : (
           <div style={{ color: '#aaa', fontSize: 13 }}>（無細項說明）</div>
         )}
+
+        <div style={{ marginTop: 10, fontSize: 11, color: '#aaa' }}>點擊列可編輯 · Enter 確認 · Esc 取消</div>
       </div>
     </div>
   )
@@ -192,7 +248,7 @@ export default function QuoteDisplay({ items, onUpdateItem, onDeleteItem, onMove
 
   return (
     <div style={{ overflowX: 'auto', padding: '0 0 12px 0' }}>
-      {detailItem && <ItemDetailModal item={detailItem} allItems={items} onClose={() => setDetailItem(null)} />}
+      {detailItem && <ItemDetailModal item={detailItem} allItems={items} onUpdateItem={onUpdateItem} onDeleteItem={onDeleteItem} onClose={() => setDetailItem(null)} />}
       <table style={{ minWidth: 900 }}>
         <thead>
           <tr>
