@@ -299,7 +299,7 @@ export default function App() {
 
     if (selectedItem.is_window_type && L > 0 && W > 0) {
       // 窗戶類：長×寬×單價
-      const total = calculateWindowPrice(L, W, UP)
+      const totalPer = calculateWindowPrice(L, W, UP)
       newItems = [{
         work_type: selectedItem.category,
         item_name: selectedItem.item_name,
@@ -307,7 +307,7 @@ export default function App() {
         unit_price: UP,
         quantity: QTY,
         unit: inputData.unit || selectedItem.unit || '',
-        total_price: total,
+        total_price: totalPer * QTY,
         notes: notes || `尺寸：${L}*${W} 公分`,
         length_cm: L,
         width_cm: W,
@@ -320,44 +320,69 @@ export default function App() {
       const areas = calculateArea(L, W, H)
 
       if (H > 0) {
-        // 四面牆：5 行（4個面 + 1個小計）
-        newItems = areas.map((face, i) => ({
-          work_type: selectedItem.category,
-          item_name: face.isWallTotal
-            ? `${selectedItem.item_name}（四面牆合計）`
-            : `${selectedItem.item_name} ${face.label}`,
-          floor_location: inputData.floor_location,
-          unit_price: face.isWallTotal ? UP : UP,
-          quantity: formatPing(face.ping),
-          unit: '坪',
-          total_price: face.isWallTotal
-            ? formatPing(face.ping) * UP
-            : formatPing(face.ping) * UP,
-          notes: face.note,
-          length_cm: L,
-          width_cm: W,
-          height_cm: H,
-          is_sub_item: !face.isWallTotal,
-          extra_notes: inputData.extra_notes || '',
-        }))
+        // 四面牆：5 行（4個面 + 1個小計），預先產生 parentId
+        const parentId = crypto.randomUUID ? crypto.randomUUID() : `local_${Date.now()}_wall`
+        newItems = areas.map((face) => {
+          const isTotal = face.isWallTotal
+          return {
+            id: isTotal ? parentId : (crypto.randomUUID ? crypto.randomUUID() : `local_${Date.now()}_face`),
+            work_type: selectedItem.category,
+            item_name: isTotal
+              ? `${selectedItem.item_name}（四面牆合計）`
+              : `${selectedItem.item_name} ${face.label}`,
+            floor_location: inputData.floor_location,
+            unit_price: UP,
+            quantity: isTotal ? formatPing(face.ping) * QTY : formatPing(face.ping),
+            unit: '坪',
+            total_price: isTotal ? formatPing(face.ping) * UP * QTY : formatPing(face.ping) * UP,
+            notes: isTotal && QTY > 1 ? (face.note ? `${face.note} ×${QTY}間` : `×${QTY}間`) : face.note,
+            length_cm: L,
+            width_cm: W,
+            height_cm: H,
+            is_sub_item: !isTotal,
+            parent_id: isTotal ? null : parentId,
+            extra_notes: inputData.extra_notes || '',
+          }
+        })
       } else {
-        // 單一面積
+        // 單一面積：parent + sub-item 記錄尺寸
         const ping = formatPing(areas[0].ping)
-        newItems = [{
-          work_type: selectedItem.category,
-          item_name: selectedItem.item_name,
-          floor_location: inputData.floor_location,
-          unit_price: UP,
-          quantity: ping,
-          unit: '坪',
-          total_price: ping * UP,
-          notes: notes || areas[0].note,
-          length_cm: L,
-          width_cm: W,
-          height_cm: 0,
-          is_sub_item: false,
-          extra_notes: inputData.extra_notes || '',
-        }]
+        const parentId = crypto.randomUUID ? crypto.randomUUID() : `local_${Date.now()}_0`
+        newItems = [
+          {
+            id: parentId,
+            work_type: selectedItem.category,
+            item_name: selectedItem.item_name,
+            floor_location: inputData.floor_location,
+            unit_price: UP,
+            quantity: ping * QTY,
+            unit: '坪',
+            total_price: ping * UP * QTY,
+            notes: notes || areas[0].note,
+            length_cm: L,
+            width_cm: W,
+            height_cm: 0,
+            is_sub_item: false,
+            extra_notes: inputData.extra_notes || '',
+          },
+          {
+            id: crypto.randomUUID ? crypto.randomUUID() : `local_${Date.now()}_1`,
+            work_type: selectedItem.category,
+            item_name: `長${L}×寬${W}cm`,
+            floor_location: inputData.floor_location,
+            unit_price: UP,
+            quantity: ping,
+            unit: '坪',
+            total_price: ping * UP * QTY,
+            notes: QTY > 1 ? `×${QTY}間` : '',
+            length_cm: L,
+            width_cm: W,
+            height_cm: 0,
+            is_sub_item: true,
+            parent_id: parentId,
+            extra_notes: inputData.extra_notes || '',
+          },
+        ]
       }
     } else {
       // 純數量
@@ -387,9 +412,25 @@ export default function App() {
              !i.is_sub_item
       )
       if (existing) {
-        const newQty = (toNumber(existing.quantity) + toNumber(ni.quantity))
-        const newTotal = (toNumber(existing.total_price) + toNumber(ni.total_price))
+        const newQty = toNumber(existing.quantity) + toNumber(ni.quantity)
+        const newTotal = toNumber(existing.total_price) + toNumber(ni.total_price)
         await handleUpdateItem(existing.id, { quantity: newQty, total_price: newTotal })
+
+        // 保留本次尺寸記錄為子項
+        if (newItems.length > 1) {
+          const subItem = {
+            ...newItems[1],
+            parent_id: existing.id,
+            id: crypto.randomUUID ? crypto.randomUUID() : `local_${Date.now()}_sub`,
+            quote_id: qId,
+            sort_order: quoteItems.length,
+          }
+          setQuoteItems(prev => [...prev, subItem])
+          if (qId) {
+            try { await addQuoteItem({ ...subItem, quote_id: qId }) } catch (e) { console.warn('sub-item save failed:', e.message) }
+          }
+        }
+
         setInputData({
           ...EMPTY_INPUT,
           floor_location: inputData.floor_location,
@@ -422,7 +463,7 @@ export default function App() {
     // 加入估價單（本地 + 自動儲存到 Supabase）
     const localItems = newItems.map((item, idx) => ({
       ...item,
-      id: crypto.randomUUID ? crypto.randomUUID() : `local_${Date.now()}_${idx}`,
+      id: item.id || (crypto.randomUUID ? crypto.randomUUID() : `local_${Date.now()}_${idx}`),
       quote_id: qId,
       sort_order: quoteItems.length + idx,
     }))

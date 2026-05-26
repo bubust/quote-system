@@ -82,10 +82,13 @@ function EditableCell({ item, field, value, align = 'left', type = 'text', style
 }
 
 // 細項清單 Modal
-function ItemDetailModal({ item, onClose }) {
+function ItemDetailModal({ item, allItems, onClose }) {
+  const subItems = allItems.filter(i => i.parent_id === item.id)
   const notes = item.notes || ''
-  // 以頓號、逗號、換行分割
   const lines = notes.split(/[、，,\n]/).map(s => s.trim()).filter(Boolean)
+
+  const thStyle = { textAlign: 'right', padding: '4px 8px', color: '#555', fontWeight: 600, borderBottom: '1px solid #ddd', whiteSpace: 'nowrap' }
+  const tdStyle = { textAlign: 'right', padding: '4px 8px', borderBottom: '1px solid #f0f0f0' }
 
   return (
     <div
@@ -98,8 +101,8 @@ function ItemDetailModal({ item, onClose }) {
       <div
         onClick={e => e.stopPropagation()}
         style={{
-          background: '#fff', borderRadius: 10, padding: '24px 28px',
-          minWidth: 280, maxWidth: 420, width: '90%', boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+          background: '#fff', borderRadius: 10, padding: '20px 24px',
+          minWidth: 320, maxWidth: 520, width: '95%', boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
@@ -107,20 +110,51 @@ function ItemDetailModal({ item, onClose }) {
             <div style={{ fontSize: 11, color: '#888', marginBottom: 2 }}>{item.floor_location} · {item.work_type}</div>
             <div style={{ fontWeight: 700, fontSize: 16 }}>{item.item_name}</div>
           </div>
-          <button
-            onClick={onClose}
-            style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#aaa', lineHeight: 1 }}
-          >✕</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#aaa', lineHeight: 1 }}>✕</button>
         </div>
 
-        {lines.length === 0 ? (
-          <div style={{ color: '#aaa', fontSize: 13 }}>（無細項說明）</div>
-        ) : (
+        {subItems.length > 0 ? (
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr>
+                <th style={{ ...thStyle, textAlign: 'center', width: 30 }}>項</th>
+                <th style={{ ...thStyle, textAlign: 'left' }}>尺寸</th>
+                <th style={thStyle}>數量</th>
+                <th style={thStyle}>單價</th>
+                <th style={thStyle}>小計</th>
+              </tr>
+            </thead>
+            <tbody>
+              {subItems.map((sub, i) => (
+                <tr key={sub.id}>
+                  <td style={{ ...tdStyle, textAlign: 'center', color: '#999' }}>{i + 1}</td>
+                  <td style={{ ...tdStyle, textAlign: 'left' }}>
+                    {sub.item_name}
+                    {sub.notes ? <span style={{ color: '#888', marginLeft: 4 }}>({sub.notes})</span> : ''}
+                  </td>
+                  <td style={tdStyle}>{sub.quantity} {sub.unit}</td>
+                  <td style={tdStyle}>{formatNTD(sub.unit_price)}</td>
+                  <td style={{ ...tdStyle, fontWeight: 600, color: '#1565C0' }}>{formatNTD(sub.total_price)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr style={{ borderTop: '2px solid #ccc', fontWeight: 700 }}>
+                <td colSpan={2} style={{ textAlign: 'right', padding: '6px 8px', color: '#333' }}>合計</td>
+                <td style={{ textAlign: 'right', padding: '6px 8px' }}>{item.quantity} {item.unit}</td>
+                <td />
+                <td style={{ textAlign: 'right', padding: '6px 8px', color: '#E65100' }}>{formatNTD(item.total_price)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        ) : lines.length > 0 ? (
           <ol style={{ margin: 0, paddingLeft: 22, lineHeight: 2 }}>
             {lines.map((line, i) => (
               <li key={i} style={{ fontSize: 14, color: '#333' }}>{line}</li>
             ))}
           </ol>
+        ) : (
+          <div style={{ color: '#aaa', fontSize: 13 }}>（無細項說明）</div>
         )}
       </div>
     </div>
@@ -155,7 +189,7 @@ export default function QuoteDisplay({ items, onUpdateItem, onDeleteItem, onMove
 
   return (
     <div style={{ overflowX: 'auto', padding: '0 0 12px 0' }}>
-      {detailItem && <ItemDetailModal item={detailItem} onClose={() => setDetailItem(null)} />}
+      {detailItem && <ItemDetailModal item={detailItem} allItems={items} onClose={() => setDetailItem(null)} />}
       <table style={{ minWidth: 900 }}>
         <thead>
           <tr>

@@ -247,16 +247,18 @@ export default function InputArea({
               <span style={{ fontWeight: 600, color: '#1565C0' }}>四面牆預覽：</span>
               {areaPreview.map((f, i) => (
                 <span key={i} style={{ marginLeft: 8, color: f.isWallTotal ? '#E65100' : '#333', fontWeight: f.isWallTotal ? 700 : 400 }}>
-                  {f.label}：{formatPing(f.ping)} 坪
+                  {f.label}：{formatPing(f.isWallTotal ? f.ping * QTY : f.ping)} 坪
                   {i < areaPreview.length - 1 && !f.isWallTotal && ' |'}
                 </span>
               ))}
+              {QTY > 1 && <span style={{ marginLeft: 8, color: '#888' }}>×{QTY} 間</span>}
             </>
           ) : (
             <span>
               <span style={{ fontWeight: 600, color: '#1565C0' }}>面積：</span>
               {formatPing(areaPreview[0].ping)} 坪
-              {UP > 0 && <span style={{ marginLeft: 8, color: '#E65100' }}>小計：{formatNTD(areaPreview[0].ping * UP)} 元</span>}
+              {QTY > 1 && <span style={{ color: '#888' }}> ×{QTY} = {formatPing(areaPreview[0].ping * QTY)} 坪</span>}
+              {UP > 0 && <span style={{ marginLeft: 8, color: '#E65100' }}>小計：{formatNTD(areaPreview[0].ping * QTY * UP)} 元</span>}
             </span>
           )}
         </div>
@@ -266,6 +268,7 @@ export default function InputArea({
         <div style={{ marginTop: 6, background: '#FFF3E0', borderRadius: 4, padding: '4px 8px', fontSize: 12 }}>
           <span style={{ fontWeight: 600, color: '#E65100' }}>窗戶總價：</span>
           {L} × {W} × {UP} = <strong>{formatNTD(windowTotal)}</strong> 元
+          {QTY > 1 && <span style={{ marginLeft: 8, color: '#888' }}>×{QTY} = <strong>{formatNTD(windowTotal * QTY)}</strong> 元（合計）</span>}
         </div>
       )}
     </div>
