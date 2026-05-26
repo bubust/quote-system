@@ -288,6 +288,9 @@ export default function App() {
     const UP = toNumber(inputData.unit_price)
     const QTY = toNumber(inputData.quantity) || 1
 
+    // qId 必須在合併判斷前宣告（避免 TDZ 錯誤）
+    let qId = currentQuote?.id
+
     // 備考：加上 activeOptions
     let notes = inputData.notes || ''
     if (activeOptions && activeOptions.length > 0) {
@@ -412,8 +415,8 @@ export default function App() {
              !i.is_sub_item
       )
       if (existing) {
-        const newQty = toNumber(existing.quantity) + toNumber(ni.quantity)
-        const newTotal = toNumber(existing.total_price) + toNumber(ni.total_price)
+        const newQty = Math.round((toNumber(existing.quantity) + toNumber(ni.quantity)) * 100) / 100
+        const newTotal = Math.round((toNumber(existing.total_price) + toNumber(ni.total_price)) * 100) / 100
         await handleUpdateItem(existing.id, { quantity: newQty, total_price: newTotal })
 
         // 保留本次尺寸記錄為子項
@@ -444,7 +447,6 @@ export default function App() {
     }
 
     // 確保有 quote_id，如果沒有就先建立案件
-    let qId = currentQuote?.id
     if (!qId) {
       try {
         const newQuote = await createQuote({
