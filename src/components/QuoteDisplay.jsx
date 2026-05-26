@@ -52,8 +52,8 @@ function EditableCell({ item, field, value, align = 'left', type = 'text', style
             }}
           />
         ) : (
-          <span style={{ display: 'block', minHeight: 20, cursor: 'text', whiteSpace: 'pre-wrap', fontSize: 12 }}>
-            {display()}
+          <span style={{ display: 'block', minHeight: 20, cursor: 'text', fontSize: 12 }}>
+            {(value ?? '').replace(/\n/g, '；')}
           </span>
         )}
       </td>
