@@ -87,7 +87,7 @@ export function formatPing(ping) {
  */
 export function calculateCategorySubtotals(items) {
   const categoryMap = {}
-  items.forEach(item => {
+  items.filter(i => !i.is_sub_item).forEach(item => {
     const cat = item.work_type || '其他'
     if (!categoryMap[cat]) categoryMap[cat] = 0
     categoryMap[cat] += toNumber(item.total_price)
@@ -99,5 +99,5 @@ export function calculateCategorySubtotals(items) {
  * 計算估價單總計
  */
 export function calculateGrandTotal(items) {
-  return items.reduce((sum, item) => sum + toNumber(item.total_price), 0)
+  return items.filter(i => !i.is_sub_item).reduce((sum, item) => sum + toNumber(item.total_price), 0)
 }

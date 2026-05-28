@@ -38,10 +38,10 @@ export function exportExcel(quoteData, items, companyInfo, type = 'quote') {
 
   // 產生資料行 HTML
   const rowsHtml = groups.map(({ category, items: catItems }) => {
-    const sub = catItems.reduce((s, i) => s + toNumber(i.total_price), 0)
+    const sub = catItems.filter(i => !i.is_sub_item).reduce((s, i) => s + toNumber(i.total_price), 0)
     const itemRows = catItems.map(item => `
       <tr>
-        <td style="text-align:center;border:1px solid #ccc">${seq++}</td>
+        <td style="text-align:center;border:1px solid #ccc">${item.is_sub_item ? '' : seq++}</td>
         <td style="border:1px solid #ccc">${item.floor_location || ''}</td>
         <td style="border:1px solid #ccc">${item.work_type || ''}</td>
         <td style="font-weight:600;border:1px solid #ccc">${item.item_name || ''}</td>
@@ -130,10 +130,10 @@ export function exportPDF(quoteData, items, companyInfo, type = 'quote') {
   let seq = 1
 
   const rowsHtml = groups.map(({ category, items: catItems }) => {
-    const sub = catItems.reduce((s, i) => s + toNumber(i.total_price), 0)
+    const sub = catItems.filter(i => !i.is_sub_item).reduce((s, i) => s + toNumber(i.total_price), 0)
     const itemRows = catItems.map(item => `
       <tr>
-        <td style="text-align:center">${seq++}</td>
+        <td style="text-align:center">${item.is_sub_item ? '' : seq++}</td>
         <td>${item.floor_location || ''}</td>
         <td>${item.work_type || ''}</td>
         <td>${item.item_name || ''}</td>
@@ -287,7 +287,7 @@ export async function exportWord(quoteData, items, companyInfo, type = 'quote') 
     catItems.forEach(item => {
       dataRows.push(new TableRow({
         children: [
-          makeCell(seq++, { align: AlignmentType.CENTER }),
+          makeCell(item.is_sub_item ? '' : seq++, { align: AlignmentType.CENTER }),
           makeCell(item.floor_location || ''),
           makeCell(item.work_type || ''),
           makeCell(item.item_name || ''),
@@ -307,7 +307,7 @@ export async function exportWord(quoteData, items, companyInfo, type = 'quote') 
         ],
       }))
     })
-    const sub = catItems.reduce((s, i) => s + toNumber(i.total_price), 0)
+    const sub = catItems.filter(i => !i.is_sub_item).reduce((s, i) => s + toNumber(i.total_price), 0)
     dataRows.push(new TableRow({
       children: [
         makeCell(`${category} 小計`, { bold: true, shade: 'E3F2FD', colSpan: 7, align: AlignmentType.RIGHT }),
