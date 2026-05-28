@@ -282,7 +282,7 @@ export default function QuoteDisplay({ items, onUpdateItem, onDeleteItem, onMove
             return (
               <React.Fragment key={cat}>
                 <tr className="category-row">
-                  <td colSpan={9} style={{ paddingLeft: 10 }}>▶ {cat}</td>
+                  <td colSpan={9} style={{ textAlign: 'center', fontSize: 15, fontWeight: 700, letterSpacing: 2 }}>【{cat}】</td>
                   <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                     <button
                       onClick={() => onMoveCategory(cat, -1)}
