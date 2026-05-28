@@ -85,6 +85,7 @@ function EditableCell({ item, field, value, align = 'left', type = 'text', style
 function ItemDetailModal({ item, allItems, onUpdateItem, onDeleteItem, onClose }) {
   const [editingId, setEditingId] = useState(null)
   const [editVals, setEditVals] = useState({})
+  const escaping = React.useRef(false)
 
   const subItems = allItems.filter(i => i.parent_id === item.id)
   const parent = allItems.find(i => i.id === item.id) || item
@@ -99,6 +100,7 @@ function ItemDetailModal({ item, allItems, onUpdateItem, onDeleteItem, onClose }
   }
 
   function startEdit(sub, focusField = 'item_name') {
+    escaping.current = false
     setEditingId(sub.id)
     setEditVals({ item_name: sub.item_name, quantity: String(sub.quantity), notes: sub.notes || '', _focus: focusField })
   }
@@ -157,17 +159,20 @@ function ItemDetailModal({ item, allItems, onUpdateItem, onDeleteItem, onClose }
                     <>
                       <td style={tdStyle}>
                         <input autoFocus={editVals._focus !== 'notes'} value={editVals.item_name} onChange={e => setEditVals(v => ({ ...v, item_name: e.target.value }))}
-                          onKeyDown={e => { if (e.key === 'Enter') commitEdit(sub); if (e.key === 'Escape') setEditingId(null) }}
+                          onKeyDown={e => { if (e.key === 'Enter') commitEdit(sub); if (e.key === 'Escape') { escaping.current = true; setEditingId(null) } }}
+                          onBlur={() => { if (!escaping.current) commitEdit(sub); escaping.current = false }}
                           style={{ ...inputStyle, width: 110 }} />
                       </td>
                       <td style={tdStyle}>
                         <input autoFocus={editVals._focus === 'notes'} value={editVals.notes} onChange={e => setEditVals(v => ({ ...v, notes: e.target.value }))}
-                          onKeyDown={e => { if (e.key === 'Enter') commitEdit(sub); if (e.key === 'Escape') setEditingId(null) }}
+                          onKeyDown={e => { if (e.key === 'Enter') commitEdit(sub); if (e.key === 'Escape') { escaping.current = true; setEditingId(null) } }}
+                          onBlur={() => { if (!escaping.current) commitEdit(sub); escaping.current = false }}
                           placeholder="備註" style={{ ...inputStyle, width: 120 }} />
                       </td>
                       <td style={{ ...tdStyle, textAlign: 'right' }}>
                         <input type="number" value={editVals.quantity} onChange={e => setEditVals(v => ({ ...v, quantity: e.target.value }))}
-                          onKeyDown={e => { if (e.key === 'Enter') commitEdit(sub); if (e.key === 'Escape') setEditingId(null) }}
+                          onKeyDown={e => { if (e.key === 'Enter') commitEdit(sub); if (e.key === 'Escape') { escaping.current = true; setEditingId(null) } }}
+                          onBlur={() => { if (!escaping.current) commitEdit(sub); escaping.current = false }}
                           style={{ ...inputStyle, width: 60, textAlign: 'right' }} />
                       </td>
                       <td style={{ ...tdStyle, textAlign: 'right', color: '#999' }}>{formatNTD(sub.unit_price)}</td>
@@ -175,7 +180,7 @@ function ItemDetailModal({ item, allItems, onUpdateItem, onDeleteItem, onClose }
                         {formatNTD(Math.round((parseFloat(editVals.quantity) || 0) * toNumber(sub.unit_price) * 100) / 100)}
                       </td>
                       <td style={{ ...tdStyle, textAlign: 'center' }}>
-                        <button onClick={() => commitEdit(sub)} style={{ background: '#1565C0', color: '#fff', border: 'none', borderRadius: 3, cursor: 'pointer', fontSize: 11, padding: '2px 6px' }}>✓</button>
+                        <button onMouseDown={e => e.preventDefault()} onClick={() => commitEdit(sub)} style={{ background: '#1565C0', color: '#fff', border: 'none', borderRadius: 3, cursor: 'pointer', fontSize: 11, padding: '2px 6px' }}>✓</button>
                       </td>
                     </>
                   ) : (
