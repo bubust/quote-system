@@ -52,22 +52,26 @@ export default function QuoteList({ onClose, onOpen, onOpenFileData }) {
       if (!entry) throw new Error('找不到本機資料')
       const { quote, items } = entry
       // 只取雲端 schema 認識的欄位，避免多餘欄位導致 insert 失敗
+      const toNum = (v, fallback = null) => {
+        const n = parseFloat(v)
+        return isNaN(n) ? fallback : n
+      }
       const cleanItems = (items || []).map(item => ({
-        sequence:      item.sequence      ?? null,
-        floor_location: item.floor_location ?? '',
-        work_type:     item.work_type     ?? '',
-        item_name:     item.item_name     ?? '',
-        unit_price:    item.unit_price    ?? 0,
-        quantity:      item.quantity      ?? 1,
-        unit:          item.unit          ?? '',
-        total_price:   item.total_price   ?? 0,
-        notes:         item.notes         ?? '',
-        extra_notes:   item.extra_notes   ?? '',
-        length_cm:     item.length_cm     ?? null,
-        width_cm:      item.width_cm      ?? null,
-        height_cm:     item.height_cm     ?? null,
-        is_sub_item:   item.is_sub_item   ?? false,
-        parent_id:     item.parent_id     ?? null,
+        sequence:       toNum(item.sequence, null),
+        floor_location: item.floor_location || '',
+        work_type:      item.work_type      || '',
+        item_name:      item.item_name      || '',
+        unit_price:     toNum(item.unit_price, null),
+        quantity:       toNum(item.quantity, 1),
+        unit:           item.unit           || '',
+        total_price:    toNum(item.total_price, 0),
+        notes:          item.notes          || '',
+        extra_notes:    item.extra_notes    || '',
+        length_cm:      toNum(item.length_cm, null),
+        width_cm:       toNum(item.width_cm, null),
+        height_cm:      toNum(item.height_cm, null),
+        is_sub_item:    item.is_sub_item    ?? false,
+        parent_id:      item.parent_id      ?? null,
       }))
       const { id: _drop, ...quoteData } = quote
       await saveQuote(quoteData, cleanItems)
