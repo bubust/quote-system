@@ -42,6 +42,7 @@ export default function TransportCalc({ onClose, onAddToQuote, quoteItems = [] }
   const [db, setDb] = useState(
     Object.fromEntries(FLOOR_LIST.map(f => [f, { ...TRANSPORT_DB_INIT[f] }]))
   )
+  const [markup, setMarkup] = useState(0)
 
   // 從估價單按樓層分別計算材料用量
   const matQtyByFloor = useMemo(() => {
@@ -181,10 +182,13 @@ export default function TransportCalc({ onClose, onAddToQuote, quoteItems = [] }
     setTimeout(() => { URL.revokeObjectURL(url); document.body.removeChild(a) }, 100)
   }
 
+  const sellPrice = (cost) => Math.round(cost * (1 + markup / 100))
+
   const handleAddToQuote = () => {
     const items = allFloorData
       .filter(f => f.total > 0)
       .map(({ floor, mats, total }) => {
+        const sell = sellPrice(total)
         const notes = mats
           .filter(m => m.cost > 0)
           .map(m => `${m.mat}：${m.qty}${MAT_UNITS[m.mat]}`)
@@ -195,8 +199,8 @@ export default function TransportCalc({ onClose, onAddToQuote, quoteItems = [] }
           unit_price: null,
           quantity: 1,
           unit: '式',
-          total_price: total,
-          notes,
+          total_price: sell,
+          notes: markup > 0 ? `${notes}\n（含${markup}%加價，成本：${formatNTD(total)}）` : notes,
           floor_location: floor,
         }
       })
@@ -313,7 +317,12 @@ export default function TransportCalc({ onClose, onAddToQuote, quoteItems = [] }
                       </React.Fragment>
                     ))}
                     <td style={{ textAlign: 'right', fontWeight: 700, color: total > 0 ? '#E65100' : '#ccc' }}>
-                      {total > 0 ? formatNTD(total) : '—'}
+                      {total > 0 ? (
+                        <>
+                          {markup > 0 ? formatNTD(sellPrice(total)) : formatNTD(total)}
+                          {markup > 0 && <div style={{ fontSize: 9, color: '#aaa', fontWeight: 400 }}>成本：{formatNTD(total)}</div>}
+                        </>
+                      ) : '—'}
                     </td>
                   </tr>
                 ))}
@@ -335,7 +344,12 @@ export default function TransportCalc({ onClose, onAddToQuote, quoteItems = [] }
                     )
                   })}
                   <td style={{ textAlign: 'right', fontWeight: 700, fontSize: 14, color: '#E65100' }}>
-                    {grandTotal > 0 ? formatNTD(grandTotal) : '—'}
+                    {grandTotal > 0 ? (
+                      <>
+                        {markup > 0 ? formatNTD(sellPrice(grandTotal)) : formatNTD(grandTotal)}
+                        {markup > 0 && <div style={{ fontSize: 9, color: '#aaa', fontWeight: 400 }}>成本：{formatNTD(grandTotal)}</div>}
+                      </>
+                    ) : '—'}
                   </td>
                 </tr>
                 <tr style={{ background: '#FFF8E1' }}>
@@ -352,11 +366,13 @@ export default function TransportCalc({ onClose, onAddToQuote, quoteItems = [] }
                   ))}
                   <td style={{ textAlign: 'right', fontSize: 11 }}>
                     {allFloorData.filter(f => f.total > 0).map(f => (
-                      <div key={f.floor} style={{ fontWeight: 600 }}>{f.floor}：{formatNTD(f.total)}</div>
+                      <div key={f.floor} style={{ fontWeight: 600 }}>
+                        {f.floor}：{markup > 0 ? formatNTD(sellPrice(f.total)) : formatNTD(f.total)}
+                      </div>
                     ))}
                     {grandTotal > 0 && (
                       <div style={{ fontWeight: 700, color: '#E65100', borderTop: '1px solid #FFB74D', marginTop: 2, paddingTop: 2 }}>
-                        全部：{formatNTD(grandTotal)}
+                        全部：{markup > 0 ? formatNTD(sellPrice(grandTotal)) : formatNTD(grandTotal)}
                       </div>
                     )}
                   </td>
@@ -364,6 +380,32 @@ export default function TransportCalc({ onClose, onAddToQuote, quoteItems = [] }
               </tfoot>
             </table>
           </div>
+        </div>
+
+        {/* === 加價設定 === */}
+        <div style={{ background: '#FFF3E0', border: '1px solid #FFB74D', borderRadius: 6, padding: '10px 16px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+          <span style={{ fontWeight: 600, color: '#E65100', fontSize: 13 }}>
+            成本合計：{grandTotal > 0 ? formatNTD(grandTotal) : '—'}
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <label style={{ fontWeight: 700, color: '#1565C0', fontSize: 13 }}>加價：</label>
+            <input
+              type="number"
+              value={markup}
+              onChange={e => setMarkup(Math.max(0, toNumber(e.target.value) || 0))}
+              style={{ width: 64, textAlign: 'right', border: '1px solid #FFB74D', borderRadius: 3, padding: '3px 6px', fontSize: 14, fontWeight: 700 }}
+              min={0}
+              step={1}
+              placeholder="0"
+            />
+            <span style={{ fontWeight: 700, fontSize: 13 }}>%</span>
+          </span>
+          {grandTotal > 0 && markup > 0 && (
+            <span style={{ fontWeight: 700, color: '#2e7d32', fontSize: 14 }}>
+              售價合計：{formatNTD(sellPrice(grandTotal))}
+              <span style={{ fontSize: 11, color: '#888', marginLeft: 8 }}>（加 {formatNTD(sellPrice(grandTotal) - grandTotal)}）</span>
+            </span>
+          )}
         </div>
 
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
