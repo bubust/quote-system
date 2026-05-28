@@ -7,6 +7,7 @@ function EditableCell({ item, field, value, align = 'left', type = 'text', style
   const [localVal, setLocalVal] = useState('')
 
   const startEdit = () => {
+    if (editing) return
     setLocalVal(value ?? '')
     setEditing(true)
   }
