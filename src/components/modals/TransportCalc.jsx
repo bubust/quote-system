@@ -16,7 +16,7 @@ const MAT_UNITS = { 磚頭: '塊', 水泥: '包', 沙: 'm³', 黏著劑: '包', 
 
 // 材料計算規則（per 坪）
 const MATERIAL_RULES = {
-  '砌磚':           { 磚頭: 840, 水泥: 2.5, 沙: 0.1 },
+  '砌磚':           { 磚頭: 250, 水泥: 2.5, 沙: 0.1 },
   '30*60地磚':      { 磁磚_3060: 21, 水泥: 1.5, 沙: 0.05, 黏著劑: 1 },
   '30*30地磚':      { 磁磚_3030: 41, 水泥: 1.5, 沙: 0.05, 黏著劑: 1 },
   '60*60拋光石英磚': { 磁磚_6060: 10, 黏著劑: 2 },
@@ -52,6 +52,7 @@ export default function TransportCalc({ onClose, onAddToQuote, quoteItems = [] }
     })
 
     quoteItems.forEach(item => {
+      if (item.is_sub_item) return  // 子項目不計算，避免加倍
       const floor = item.floor_location
       if (!floor || !byFloor[floor]) return
 
