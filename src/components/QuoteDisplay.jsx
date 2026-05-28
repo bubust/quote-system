@@ -223,9 +223,47 @@ function ItemDetailModal({ item, allItems, onUpdateItem, onDeleteItem, onClose }
   )
 }
 
+// 備考大型編輯器 Modal
+function NotesEditorModal({ item, onSave, onClose }) {
+  const [text, setText] = useState(item.notes ?? '')
+  const [fontSize, setFontSize] = useState(13)
+  const handleSave = () => { onSave(item.id, { notes: text }); onClose() }
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal-box" style={{ width: 640 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+          <div style={{ fontWeight: 700, fontSize: 14, color: '#1565C0' }}>備考編輯 — {item.item_name}</div>
+          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            <span style={{ fontSize: 12, color: '#666', marginRight: 2 }}>字級：</span>
+            {[['小', 11], ['中', 13], ['大', 16], ['特大', 20]].map(([lbl, s]) => (
+              <button key={s} onMouseDown={e => e.preventDefault()} onClick={() => setFontSize(s)}
+                style={{ border: fontSize === s ? '2px solid #1565C0' : '1px solid #ccc', background: fontSize === s ? '#E3F2FD' : 'white', borderRadius: 3, cursor: 'pointer', padding: '1px 7px', fontSize: 12, fontWeight: fontSize === s ? 700 : 400 }}>
+                {lbl}
+              </button>
+            ))}
+          </div>
+        </div>
+        <textarea
+          autoFocus
+          value={text}
+          onChange={e => setText(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Escape') onClose() }}
+          style={{ width: '100%', height: 320, fontSize, padding: 10, border: '1px solid #ccc', borderRadius: 4, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.8, boxSizing: 'border-box' }}
+          placeholder="請輸入備考說明..."
+        />
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 10 }}>
+          <button className="btn-blue" onMouseDown={e => e.preventDefault()} onClick={handleSave}>✓ 確認</button>
+          <button className="btn-gray" onClick={onClose}>取消</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function QuoteDisplay({ items, onUpdateItem, onDeleteItem, onMoveItem, onMoveCategory, onDuplicateItem, onReorderItem }) {
   const [deleteConfirm, setDeleteConfirm] = useState(null)
   const [detailItem, setDetailItem] = useState(null)
+  const [notesModal, setNotesModal] = useState(null)
   const [dragOverId, setDragOverId] = useState(null)
   const [dragBefore, setDragBefore] = useState(false)
   const draggingId = React.useRef(null)
@@ -258,6 +296,7 @@ export default function QuoteDisplay({ items, onUpdateItem, onDeleteItem, onMove
   return (
     <div style={{ overflowX: 'auto', padding: '0 0 12px 0' }}>
       {detailItem && <ItemDetailModal item={detailItem} allItems={items} onUpdateItem={onUpdateItem} onDeleteItem={onDeleteItem} onClose={() => setDetailItem(null)} />}
+      {notesModal && <NotesEditorModal item={notesModal} onSave={onUpdateItem} onClose={() => setNotesModal(null)} />}
       <table style={{ minWidth: 900 }}>
         <thead>
           <tr>
@@ -303,19 +342,6 @@ export default function QuoteDisplay({ items, onUpdateItem, onDeleteItem, onMove
                   return (
                     <tr
                       key={item.id || idx}
-                      draggable={!item.is_sub_item}
-                      onDragStart={e => {
-                        if (item.is_sub_item) return
-                        if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) { e.preventDefault(); return }
-                        draggingId.current = item.id
-                        e.dataTransfer.effectAllowed = 'move'
-                        e.currentTarget.style.opacity = '0.4'
-                      }}
-                      onDragEnd={e => {
-                        e.currentTarget.style.opacity = ''
-                        draggingId.current = null
-                        setDragOverId(null)
-                      }}
                       onDragOver={e => {
                         if (item.is_sub_item || !draggingId.current || draggingId.current === item.id) return
                         e.preventDefault()
@@ -337,7 +363,21 @@ export default function QuoteDisplay({ items, onUpdateItem, onDeleteItem, onMove
                         borderBottom: isDragTarget && !dragBefore ? '2px solid #1565C0' : undefined,
                       }}
                     >
-                      <td style={{ textAlign: 'center', color: item.is_sub_item ? '#bbb' : '#999', cursor: item.is_sub_item ? undefined : 'grab', userSelect: 'none', fontSize: 12 }}>
+                      <td
+                        draggable={!item.is_sub_item}
+                        onDragStart={e => {
+                          if (item.is_sub_item) return
+                          draggingId.current = item.id
+                          e.dataTransfer.effectAllowed = 'move'
+                          e.currentTarget.closest('tr').style.opacity = '0.4'
+                        }}
+                        onDragEnd={e => {
+                          e.currentTarget.closest('tr').style.opacity = ''
+                          draggingId.current = null
+                          setDragOverId(null)
+                        }}
+                        style={{ textAlign: 'center', color: item.is_sub_item ? '#bbb' : '#999', cursor: item.is_sub_item ? undefined : 'grab', userSelect: 'none', fontSize: 12 }}
+                      >
                         {seq != null ? seq : ''}
                       </td>
                       <EditableCell item={item} field="floor_location" value={item.floor_location} onSave={onUpdateItem} />
@@ -350,7 +390,16 @@ export default function QuoteDisplay({ items, onUpdateItem, onDeleteItem, onMove
                       <EditableCell item={item} field="quantity" value={item.quantity} align="right" type="number" onSave={onUpdateItem} />
                       <EditableCell item={item} field="unit" value={item.unit} align="center" onSave={onUpdateItem} />
                       <EditableCell item={item} field="total_price" value={item.total_price} align="right" type="number" onSave={onUpdateItem} />
-                      <EditableCell item={item} field="notes" value={item.notes} onSave={onUpdateItem} />
+                      <td
+                        onClick={() => setNotesModal(item)}
+                        style={{ cursor: 'text', fontSize: 12, maxWidth: 260, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}
+                        title="點擊編輯備考"
+                      >
+                        {item.notes
+                          ? <span style={{ color: '#333' }}>{item.notes}</span>
+                          : <span style={{ color: '#ccc' }}>點擊編輯</span>
+                        }
+                      </td>
                       <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                         {!item.is_sub_item && (
                           <>
@@ -374,37 +423,24 @@ export default function QuoteDisplay({ items, onUpdateItem, onDeleteItem, onMove
                             >複製</button>
                           </>
                         )}
-                        <button
-                          onClick={() => onMoveItem(item.id, -1)}
-                          title="上移"
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: '0 2px', color: '#555' }}
-                        >▲</button>
-                        <button
-                          onClick={() => onMoveItem(item.id, 1)}
-                          title="下移"
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: '0 2px', color: '#555' }}
-                        >▼</button>
                         {deleteConfirm === item.id ? (
                           <>
                             <button
                               onClick={() => { onDeleteItem(item.id); setDeleteConfirm(null) }}
-                              title="確定刪除"
-                              style={{ background: '#f44336', border: 'none', cursor: 'pointer', fontSize: 11, padding: '1px 4px', color: '#fff', borderRadius: 2 }}>
+                              style={{ background: '#f44336', border: 'none', cursor: 'pointer', fontSize: 11, padding: '1px 5px', color: '#fff', borderRadius: 2 }}>
                               確定
                             </button>
                             <button
                               onClick={() => setDeleteConfirm(null)}
-                              title="取消"
-                              style={{ background: 'none', border: '1px solid #ccc', cursor: 'pointer', fontSize: 11, padding: '1px 4px', borderRadius: 2 }}>
+                              style={{ background: 'none', border: '1px solid #ccc', cursor: 'pointer', fontSize: 11, padding: '1px 5px', borderRadius: 2, marginLeft: 2 }}>
                               取消
                             </button>
                           </>
                         ) : (
                           <button
                             onClick={() => setDeleteConfirm(item.id)}
-                            title="刪除"
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: '0 2px', color: '#f44336' }}>
-                            ✕
+                            style={{ background: 'none', border: '1px solid #f44336', cursor: 'pointer', fontSize: 11, padding: '1px 6px', color: '#f44336', borderRadius: 3 }}>
+                            刪除
                           </button>
                         )}
                       </td>
