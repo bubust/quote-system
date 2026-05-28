@@ -59,6 +59,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [statusMsg, setStatusMsg] = useState('')
+  const loadedItemCount = React.useRef(0) // 開啟案件時的明細數量，存檔時用來防止誤覆寫
 
   // ── Modal 狀態 ─────────────────────────────────────────────────
   const [showDatabase, setShowDatabase] = useState(false)
@@ -147,6 +148,7 @@ export default function App() {
     setCurrentQuote(null)
     setProjectData(EMPTY_PROJECT)
     setQuoteItems([])
+    loadedItemCount.current = 0
     setSelectedCategory('')
     setSelectedItem(null)
     setInputData(EMPTY_INPUT)
@@ -155,6 +157,19 @@ export default function App() {
 
   // ── 儲存（含 localStorage fallback）───────────────────────────
   const handleSave = useCallback(async () => {
+    // 防呆：若目前明細數量遠少於上次開啟時，先確認
+    const currentParentCount = quoteItems.filter(i => !i.is_sub_item).length
+    if (
+      currentQuote?.id &&
+      loadedItemCount.current >= 3 &&
+      currentParentCount < loadedItemCount.current / 2
+    ) {
+      const ok = window.confirm(
+        `⚠️ 警告：上次開啟時有 ${loadedItemCount.current} 筆明細，現在只有 ${currentParentCount} 筆。\n` +
+        `確定要儲存嗎？儲存後原有資料會被覆蓋。`
+      )
+      if (!ok) { setIsSaving(false); return }
+    }
     setIsSaving(true)
     try {
       const quote = await saveQuote(
@@ -238,6 +253,7 @@ export default function App() {
         renovation_type: quote.renovation_type,
       })
       setQuoteItems(items || [])
+      loadedItemCount.current = (items || []).filter(i => !i.is_sub_item).length
       showStatus(`已開啟：${quote.project_name || '未命名'}`)
     } catch (e) {
       // fallback 到本地
@@ -251,6 +267,7 @@ export default function App() {
             renovation_type: local.quote.renovation_type,
           })
           setQuoteItems(local.items || [])
+          loadedItemCount.current = (local.items || []).filter(i => !i.is_sub_item).length
           showStatus(`已開啟（本機）：${local.quote.project_name || '未命名'}`)
         } else {
           showStatus('開啟失敗：' + e.message)
