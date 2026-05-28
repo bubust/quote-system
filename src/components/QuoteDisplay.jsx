@@ -223,9 +223,12 @@ function ItemDetailModal({ item, allItems, onUpdateItem, onDeleteItem, onClose }
   )
 }
 
-export default function QuoteDisplay({ items, onUpdateItem, onDeleteItem, onMoveItem, onMoveCategory, onDuplicateItem }) {
+export default function QuoteDisplay({ items, onUpdateItem, onDeleteItem, onMoveItem, onMoveCategory, onDuplicateItem, onReorderItem }) {
   const [deleteConfirm, setDeleteConfirm] = useState(null)
   const [detailItem, setDetailItem] = useState(null)
+  const [dragOverId, setDragOverId] = useState(null)
+  const [dragBefore, setDragBefore] = useState(false)
+  const draggingId = React.useRef(null)
 
   if (!items || items.length === 0) {
     return (
@@ -296,10 +299,46 @@ export default function QuoteDisplay({ items, onUpdateItem, onDeleteItem, onMove
 
                 {catItems.map((item, idx) => {
                   const seq = item.is_sub_item ? null : catSeq++
+                  const isDragTarget = !item.is_sub_item && dragOverId === item.id
                   return (
-                    <tr key={item.id || idx} style={{ background: item.is_sub_item ? '#fafafa' : undefined }}>
-                      <td style={{ textAlign: 'center', color: item.is_sub_item ? '#bbb' : undefined }}>
-                        {seq || ''}
+                    <tr
+                      key={item.id || idx}
+                      draggable={!item.is_sub_item}
+                      onDragStart={e => {
+                        if (item.is_sub_item) return
+                        if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) { e.preventDefault(); return }
+                        draggingId.current = item.id
+                        e.dataTransfer.effectAllowed = 'move'
+                        e.currentTarget.style.opacity = '0.4'
+                      }}
+                      onDragEnd={e => {
+                        e.currentTarget.style.opacity = ''
+                        draggingId.current = null
+                        setDragOverId(null)
+                      }}
+                      onDragOver={e => {
+                        if (item.is_sub_item || !draggingId.current || draggingId.current === item.id) return
+                        e.preventDefault()
+                        const rect = e.currentTarget.getBoundingClientRect()
+                        setDragBefore(e.clientY < rect.top + rect.height / 2)
+                        setDragOverId(item.id)
+                      }}
+                      onDrop={e => {
+                        e.preventDefault()
+                        if (draggingId.current && draggingId.current !== item.id && !item.is_sub_item) {
+                          onReorderItem(draggingId.current, item.id, dragBefore)
+                        }
+                        draggingId.current = null
+                        setDragOverId(null)
+                      }}
+                      style={{
+                        background: item.is_sub_item ? '#fafafa' : undefined,
+                        borderTop: isDragTarget && dragBefore ? '2px solid #1565C0' : undefined,
+                        borderBottom: isDragTarget && !dragBefore ? '2px solid #1565C0' : undefined,
+                      }}
+                    >
+                      <td style={{ textAlign: 'center', color: item.is_sub_item ? '#bbb' : '#999', cursor: item.is_sub_item ? undefined : 'grab', userSelect: 'none', fontSize: 12 }}>
+                        {seq != null ? seq : ''}
                       </td>
                       <EditableCell item={item} field="floor_location" value={item.floor_location} onSave={onUpdateItem} />
                       <EditableCell item={item} field="work_type" value={item.work_type} onSave={onUpdateItem} />

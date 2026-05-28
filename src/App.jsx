@@ -547,6 +547,32 @@ export default function App() {
     }
   }
 
+  // ── 拖拉排序估價單明細 ──────────────────────────────────────────
+  const handleReorderItem = (draggedId, targetId, before) => {
+    setQuoteItems(prev => {
+      const draggedIdx = prev.findIndex(i => i.id === draggedId)
+      if (draggedIdx < 0) return prev
+      // 收集被拖曳項目＋其子項
+      const draggedGroup = []
+      for (let j = draggedIdx; j < prev.length && (j === draggedIdx || prev[j].parent_id === draggedId); j++) {
+        draggedGroup.push(prev[j])
+      }
+      // 移除拖曳群組
+      const arr = prev.filter(item => !draggedGroup.some(d => d.id === item.id))
+      // 在過濾後的陣列中找目標
+      const targetIdx = arr.findIndex(i => i.id === targetId)
+      if (targetIdx < 0) return prev
+      if (before) {
+        arr.splice(targetIdx, 0, ...draggedGroup)
+      } else {
+        let insertAt = targetIdx + 1
+        while (insertAt < arr.length && arr[insertAt].parent_id === targetId) insertAt++
+        arr.splice(insertAt, 0, ...draggedGroup)
+      }
+      return arr
+    })
+  }
+
   // ── 移動估價單明細 ──────────────────────────────────────────────
   const handleMoveItem = (id, direction) => {
     setQuoteItems(prev => {
@@ -706,6 +732,7 @@ export default function App() {
           onMoveItem={handleMoveItem}
           onMoveCategory={handleMoveCategory}
           onDuplicateItem={handleDuplicateItem}
+          onReorderItem={handleReorderItem}
         />
       </div>
 
