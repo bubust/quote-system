@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { Document, Packer, Paragraph, Table, TableRow, TableCell, WidthType, AlignmentType, TextRun, BorderStyle, HeadingLevel } from 'docx'
+import ExcelJS from 'exceljs'
 import { formatNTD, calculateCategorySubtotals, calculateGrandTotal, toNumber } from './calculations.js'
 
 // ─── 整理估價單資料（分組加小計）────────────────────────────────────
@@ -29,95 +30,182 @@ function today() {
   return new Date().toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' })
 }
 
-// ─── EXCEL 匯出（HTML-based，格式匹配 PDF）──────────────────────
-export function exportExcel(quoteData, items, companyInfo, type = 'quote') {
+// ─── EXCEL 匯出（ExcelJS，支援列群組折疊）──────────────────────
+export async function exportExcel(quoteData, items, companyInfo, type = 'quote') {
   const groups = groupItemsWithSubtotals(items)
   const grand = calculateGrandTotal(items)
   const dateStr = today()
+
+  const wb = new ExcelJS.Workbook()
+  wb.creator = companyInfo?.company_name || ''
+  const ws = wb.addWorksheet('估價單', {
+    properties: { outlineLevelRow: 1, summaryBelow: false },
+    views: [{ showGridLines: true }],
+  })
+
+  // 欄寬
+  ws.columns = [
+    { width: 6 },   // 項次
+    { width: 10 },  // 施工位置
+    { width: 12 },  // 工種
+    { width: 22 },  // 施工項目
+    { width: 12 },  // 單價
+    { width: 8 },   // 數量
+    { width: 6 },   // 單位
+    { width: 12 },  // 總價
+    { width: 30 },  // 備考
+  ]
+
+  const COLS = 9
+
+  const cellStyle = (fill, font = {}, alignment = {}, border = true) => ({
+    fill: fill ? { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } } : undefined,
+    font: { name: '微軟正黑體', size: 10, ...font },
+    alignment: { vertical: 'middle', wrapText: true, ...alignment },
+    border: border ? {
+      top: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+      bottom: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+      left: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+      right: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+    } : undefined,
+  })
+
+  const applyStyle = (row, style) => {
+    row.eachCell({ includeEmpty: true }, cell => {
+      if (style.fill) cell.fill = style.fill
+      if (style.font) cell.font = style.font
+      if (style.alignment) cell.alignment = style.alignment
+      if (style.border) cell.border = style.border
+    })
+  }
+
+  // 標題
+  ws.mergeCells(1, 1, 1, COLS)
+  const titleRow = ws.getRow(1)
+  titleRow.getCell(1).value = companyInfo?.company_name || '優昇國際資產管理有限公司'
+  titleRow.getCell(1).style = { font: { name: '微軟正黑體', size: 16, bold: true, color: { argb: 'FF1565C0' } }, alignment: { horizontal: 'center', vertical: 'middle' } }
+  titleRow.height = 28
+
+  ws.mergeCells(2, 1, 2, COLS)
+  const subtitleRow = ws.getRow(2)
+  subtitleRow.getCell(1).value = type === 'contract' ? '室內設計裝修工程承攬合約書' : '整建工程估價單'
+  subtitleRow.getCell(1).style = { font: { name: '微軟正黑體', size: 12 }, alignment: { horizontal: 'center', vertical: 'middle' } }
+  subtitleRow.height = 20
+
+  ws.mergeCells(3, 1, 3, 5)
+  ws.getRow(3).getCell(1).value = `案名：${quoteData.project_name || ''}　翻修類型：${quoteData.renovation_type || ''}`
+  ws.getRow(3).getCell(1).font = { name: '微軟正黑體', size: 10 }
+  ws.mergeCells(3, 6, 3, COLS)
+  ws.getRow(3).getCell(6).value = `報價日期：${dateStr}　有效期限：${companyInfo?.quote_validity_days || 30} 天`
+  ws.getRow(3).getCell(6).style = { font: { name: '微軟正黑體', size: 10 }, alignment: { horizontal: 'right' } }
+
+  ws.mergeCells(4, 1, 4, COLS)
+  ws.getRow(4).getCell(1).value = `地址：${quoteData.address || ''}`
+  ws.getRow(4).getCell(1).font = { name: '微軟正黑體', size: 10 }
+
+  // 表頭
+  const headers = ['項次', '施工位置', '工種', '施工項目', '單價', '數量', '單位', '總價', '備考']
+  const hdrRow = ws.getRow(5)
+  hdrRow.height = 18
+  headers.forEach((h, i) => {
+    hdrRow.getCell(i + 1).value = h
+    hdrRow.getCell(i + 1).style = {
+      fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1565C0' } },
+      font: { name: '微軟正黑體', size: 10, bold: true, color: { argb: 'FFFFFFFF' } },
+      alignment: { horizontal: 'center', vertical: 'middle' },
+      border: { top: { style: 'thin', color: { argb: 'FF0d47a1' } }, bottom: { style: 'thin', color: { argb: 'FF0d47a1' } }, left: { style: 'thin', color: { argb: 'FF0d47a1' } }, right: { style: 'thin', color: { argb: 'FF0d47a1' } } },
+    }
+  })
+
+  let rowIdx = 6
   let seq = 1
 
-  // 產生資料行 HTML
-  const rowsHtml = groups.map(({ category, items: catItems }) => {
+  groups.forEach(({ category, items: catItems }) => {
     const sub = catItems.filter(i => !i.is_sub_item).reduce((s, i) => s + toNumber(i.total_price), 0)
-    const itemRows = catItems.map(item => `
-      <tr>
-        <td style="text-align:center;border:1px solid #ccc">${item.is_sub_item ? '' : seq++}</td>
-        <td style="border:1px solid #ccc">${item.floor_location || ''}</td>
-        <td style="border:1px solid #ccc">${item.work_type || ''}</td>
-        <td style="font-weight:600;border:1px solid #ccc">${item.item_name || ''}</td>
-        <td style="text-align:right;border:1px solid #ccc">${item.unit_price != null ? formatNTD(item.unit_price) : ''}</td>
-        <td style="text-align:center;border:1px solid #ccc">${item.quantity != null ? toNumber(item.quantity) : ''}</td>
-        <td style="text-align:center;border:1px solid #ccc">${item.unit || ''}</td>
-        <td style="text-align:right;font-weight:600;border:1px solid #ccc">${formatNTD(item.total_price)}</td>
-        <td style="border:1px solid #ccc;white-space:pre-wrap;font-size:10px;mso-wrap-text:yes;vertical-align:top">${(item.notes || '').replace(/</g,'&lt;').replace(/\n/g,'<br/>')}</td>
-      </tr>`).join('')
 
-    return `
-      <tr style="background:#FFF9C4">
-        <td colspan="9" style="font-weight:700;padding:4px 6px;border:1px solid #ccc;font-size:12px">【${category}】</td>
-      </tr>
-      ${itemRows}
-      <tr style="background:#DDEEFF">
-        <td colspan="7" style="text-align:right;font-weight:700;padding:3px 8px;border:1px solid #ccc">${category} 小計</td>
-        <td style="text-align:right;font-weight:700;border:1px solid #ccc">${formatNTD(sub)}</td>
-        <td style="border:1px solid #ccc"></td>
-      </tr>`
-  }).join('')
+    // 類別標題列（不折疊，作為展開按鈕所在行）
+    ws.mergeCells(rowIdx, 1, rowIdx, COLS)
+    const catRow = ws.getRow(rowIdx)
+    catRow.getCell(1).value = `【${category}】`
+    catRow.getCell(1).style = {
+      fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF9C4' } },
+      font: { name: '微軟正黑體', size: 10, bold: true },
+      alignment: { vertical: 'middle' },
+      border: { top: { style: 'thin', color: { argb: 'FFCCCCCC' } }, bottom: { style: 'thin', color: { argb: 'FFCCCCCC' } }, left: { style: 'thin', color: { argb: 'FFCCCCCC' } }, right: { style: 'thin', color: { argb: 'FFCCCCCC' } } },
+    }
+    catRow.height = 16
+    rowIdx++
 
-  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-<head><meta charset="UTF-8">
-<style>
-body { font-family: Microsoft JhengHei, 微軟正黑體, sans-serif; }
-td { font-size:12px; padding:3px 5px; vertical-align:top; }
-</style>
-</head>
-<body>
-<table style="width:100%;border-collapse:collapse">
-  <!-- 標題 -->
-  <tr><td colspan="9" style="text-align:center;font-size:20px;font-weight:bold;color:#1565C0;padding:10px 0;border:none">${companyInfo?.company_name || '優昇國際資產管理有限公司'}</td></tr>
-  <tr><td colspan="9" style="text-align:center;font-size:14px;padding-bottom:8px;border:none">${type === 'contract' ? '室內設計裝修工程承攬合約書' : '整建工程估價單'}</td></tr>
-  <!-- 案件資訊 -->
-  <tr>
-    <td colspan="4" style="border:none;font-size:12px">案名：<b>${quoteData.project_name || ''}</b>&emsp;翻修類型：${quoteData.renovation_type || ''}</td>
-    <td colspan="5" style="border:none;text-align:right;font-size:12px">報價日期：${dateStr}&emsp;有效期限：${companyInfo?.quote_validity_days || 30} 天</td>
-  </tr>
-  <tr><td colspan="9" style="border:none;font-size:12px;padding-bottom:6px">地址：${quoteData.address || ''}</td></tr>
-  <!-- 表頭 -->
-  <tr style="background:#1565C0;color:white">
-    <th style="width:5%;border:1px solid #1565C0">項次</th>
-    <th style="width:8%;border:1px solid #1565C0">施工位置</th>
-    <th style="width:10%;border:1px solid #1565C0">工種</th>
-    <th style="width:16%;border:1px solid #1565C0">施工項目</th>
-    <th style="width:9%;border:1px solid #1565C0">單價</th>
-    <th style="width:7%;border:1px solid #1565C0">數量</th>
-    <th style="width:5%;border:1px solid #1565C0">單位</th>
-    <th style="width:10%;border:1px solid #1565C0">總價</th>
-    <th style="border:1px solid #1565C0">備考</th>
-  </tr>
-  ${rowsHtml}
-  <!-- 合計 -->
-  <tr style="background:#1565C0;color:white">
-    <td colspan="7" style="text-align:right;font-weight:bold;font-size:14px;border:1px solid #0d47a1;padding:6px 8px">合計</td>
-    <td style="text-align:right;font-weight:bold;font-size:14px;border:1px solid #0d47a1">${formatNTD(grand)}</td>
-    <td style="border:1px solid #0d47a1"></td>
-  </tr>
-  <!-- 空行 -->
-  <tr><td colspan="9" style="border:none;height:20px"></td></tr>
-  <!-- 公司資訊在右下角 -->
-  <tr>
-    <td colspan="5" style="border:none"></td>
-    <td colspan="4" style="border:none;text-align:right;font-size:11px;color:#555;border-top:1px solid #ddd;padding-top:6px">
-      ${companyInfo?.company_name || ''} ｜ 統一編號：${companyInfo?.tax_id || ''} ｜ 電話：${companyInfo?.phone || ''}
-    </td>
-  </tr>
-</table>
-</body></html>`
+    // 明細列（預設折疊）
+    catItems.forEach(item => {
+      const detailRow = ws.getRow(rowIdx)
+      detailRow.outlineLevel = 1
+      detailRow.hidden = true
+      detailRow.height = 16
 
-  const blob = new Blob(['\ufeff' + html], { type: 'application/vnd.ms-excel;charset=utf-8' })
+      const vals = [
+        item.is_sub_item ? '' : seq++,
+        item.floor_location || '',
+        item.work_type || '',
+        item.item_name || '',
+        item.unit_price != null ? toNumber(item.unit_price) : '',
+        item.quantity != null ? toNumber(item.quantity) : '',
+        item.unit || '',
+        toNumber(item.total_price),
+        item.notes || '',
+      ]
+      vals.forEach((v, i) => {
+        detailRow.getCell(i + 1).value = v
+        detailRow.getCell(i + 1).style = {
+          font: { name: '微軟正黑體', size: 10, bold: i === 3 || i === 7 },
+          alignment: {
+            horizontal: [0].includes(i) ? 'center' : [4, 5, 6, 7].includes(i) ? 'right' : 'left',
+            vertical: 'middle', wrapText: true,
+          },
+          border: { top: { style: 'thin', color: { argb: 'FFCCCCCC' } }, bottom: { style: 'thin', color: { argb: 'FFCCCCCC' } }, left: { style: 'thin', color: { argb: 'FFCCCCCC' } }, right: { style: 'thin', color: { argb: 'FFCCCCCC' } } },
+        }
+        if (i === 4 || i === 7) {
+          detailRow.getCell(i + 1).numFmt = '#,##0'
+        }
+      })
+      rowIdx++
+    })
+
+    // 小計列
+    const subRow = ws.getRow(rowIdx)
+    ws.mergeCells(rowIdx, 1, rowIdx, 7)
+    subRow.getCell(1).value = `${category} 小計`
+    subRow.getCell(1).style = { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDDEEFF' } }, font: { name: '微軟正黑體', size: 10, bold: true }, alignment: { horizontal: 'right', vertical: 'middle' }, border: { top: { style: 'thin', color: { argb: 'FFCCCCCC' } }, bottom: { style: 'thin', color: { argb: 'FFCCCCCC' } }, left: { style: 'thin', color: { argb: 'FFCCCCCC' } }, right: { style: 'thin', color: { argb: 'FFCCCCCC' } } } }
+    subRow.getCell(8).value = sub
+    subRow.getCell(8).style = { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDDEEFF' } }, font: { name: '微軟正黑體', size: 10, bold: true }, alignment: { horizontal: 'right', vertical: 'middle' }, numFmt: '#,##0', border: { top: { style: 'thin', color: { argb: 'FFCCCCCC' } }, bottom: { style: 'thin', color: { argb: 'FFCCCCCC' } }, left: { style: 'thin', color: { argb: 'FFCCCCCC' } }, right: { style: 'thin', color: { argb: 'FFCCCCCC' } } } }
+    subRow.getCell(9).style = { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDDEEFF' } }, border: { top: { style: 'thin', color: { argb: 'FFCCCCCC' } }, bottom: { style: 'thin', color: { argb: 'FFCCCCCC' } }, left: { style: 'thin', color: { argb: 'FFCCCCCC' } }, right: { style: 'thin', color: { argb: 'FFCCCCCC' } } } }
+    subRow.height = 16
+    rowIdx++
+  })
+
+  // 合計列
+  ws.mergeCells(rowIdx, 1, rowIdx, 7)
+  const totalRow = ws.getRow(rowIdx)
+  totalRow.getCell(1).value = '合計'
+  totalRow.getCell(1).style = { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1565C0' } }, font: { name: '微軟正黑體', size: 12, bold: true, color: { argb: 'FFFFFFFF' } }, alignment: { horizontal: 'right', vertical: 'middle' }, border: { top: { style: 'thin', color: { argb: 'FF0d47a1' } }, bottom: { style: 'thin', color: { argb: 'FF0d47a1' } }, left: { style: 'thin', color: { argb: 'FF0d47a1' } }, right: { style: 'thin', color: { argb: 'FF0d47a1' } } } }
+  totalRow.getCell(8).value = grand
+  totalRow.getCell(8).style = { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1565C0' } }, font: { name: '微軟正黑體', size: 12, bold: true, color: { argb: 'FFFFFFFF' } }, alignment: { horizontal: 'right', vertical: 'middle' }, numFmt: '#,##0', border: { top: { style: 'thin', color: { argb: 'FF0d47a1' } }, bottom: { style: 'thin', color: { argb: 'FF0d47a1' } }, left: { style: 'thin', color: { argb: 'FF0d47a1' } }, right: { style: 'thin', color: { argb: 'FF0d47a1' } } } }
+  totalRow.getCell(9).style = { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1565C0' } }, border: { top: { style: 'thin', color: { argb: 'FF0d47a1' } }, bottom: { style: 'thin', color: { argb: 'FF0d47a1' } }, left: { style: 'thin', color: { argb: 'FF0d47a1' } }, right: { style: 'thin', color: { argb: 'FF0d47a1' } } } }
+  totalRow.height = 20
+  rowIdx += 2
+
+  // 公司資訊
+  ws.mergeCells(rowIdx, 6, rowIdx, COLS)
+  ws.getRow(rowIdx).getCell(6).value = `${companyInfo?.company_name || ''} ｜ 統一編號：${companyInfo?.tax_id || ''} ｜ 電話：${companyInfo?.phone || ''}`
+  ws.getRow(rowIdx).getCell(6).style = { font: { name: '微軟正黑體', size: 9, color: { argb: 'FF555555' } }, alignment: { horizontal: 'right' } }
+
+  // 下載
+  const buf = await wb.xlsx.writeBuffer()
+  const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `${quoteData.project_name || '報價單'}_${dateStr}_${type === 'contract' ? '合約書' : '估價單'}.xls`
+  a.download = `${quoteData.project_name || '報價單'}_${dateStr}_${type === 'contract' ? '合約書' : '估價單'}.xlsx`
   document.body.appendChild(a)
   a.click()
   setTimeout(() => { URL.revokeObjectURL(url); document.body.removeChild(a) }, 100)

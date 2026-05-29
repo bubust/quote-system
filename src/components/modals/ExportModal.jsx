@@ -16,7 +16,7 @@ export default function ExportModal({ quoteData, items, companyInfo, onClose }) 
     setMsg('')
     try {
       if (format === 'excel') {
-        exportExcel(quoteData, items, companyInfo, docType)
+        await exportExcel(quoteData, items, companyInfo, docType)
         setMsg('Excel 匯出成功，請查看下載資料夾')
       } else if (format === 'pdf') {
         exportPDF(quoteData, items, companyInfo, docType)
