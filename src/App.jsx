@@ -60,6 +60,7 @@ export default function App() {
   const [loadError, setLoadError] = useState('')
   const [statusMsg, setStatusMsg] = useState('')
   const loadedItemCount = React.useRef(0) // 開啟案件時的明細數量，存檔時用來防止誤覆寫
+  const handleSaveRef = React.useRef(null) // 永遠指向最新的 handleSave，避免 Ctrl+S stale closure
 
   // ── Modal 狀態 ─────────────────────────────────────────────────
   const [showDatabase, setShowDatabase] = useState(false)
@@ -74,16 +75,21 @@ export default function App() {
   // ── 初始化 ─────────────────────────────────────────────────────
   useEffect(() => {
     initApp()
-    // Ctrl+S 儲存快捷鍵
+    // Ctrl+S 儲存快捷鍵（透過 ref 呼叫，避免 stale closure）
     const handler = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault()
-        handleSave()
+        handleSaveRef.current?.()
       }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [])
+
+  // 每次 handleSave 更新時，同步更新 ref
+  useEffect(() => {
+    handleSaveRef.current = handleSave
+  }, [handleSave])
 
   const initApp = async () => {
     setIsLoading(true)
@@ -172,11 +178,31 @@ export default function App() {
     }
     setIsSaving(true)
     try {
-      const quote = await saveQuote(
-        { ...projectData, id: currentQuote?.id },
+      let saveId = currentQuote?.id || null
+
+      // 若案名與載入時不同，彈窗讓使用者確認：更新原案 or 另存新案
+      if (
+        currentQuote?.id &&
+        currentQuote.project_name != null &&
+        projectData.project_name !== currentQuote.project_name
+      ) {
+        const shouldUpdate = window.confirm(
+          `⚠️ 您修改了案名\n\n` +
+          `原案件：「${currentQuote.project_name}」\n` +
+          `目前案名：「${projectData.project_name}」\n\n` +
+          `按「確定」→ 更新原案件（覆蓋舊資料）\n` +
+          `按「取消」→ 另存為全新案件`
+        )
+        if (!shouldUpdate) saveId = null  // 另存新案
+      }
+
+      const { quote, items: savedItems } = await saveQuote(
+        { ...projectData, id: saveId },
         quoteItems
       )
       setCurrentQuote(quote)
+      // 用 DB 回傳的 items 更新 state，確保 ID 與 DB 一致，避免後續 update/delete 出錯
+      if (savedItems && savedItems.length > 0) setQuoteItems(savedItems)
       showStatus('儲存成功 ✓ (雲端)')
     } catch (e) {
       // 本地備用
@@ -218,7 +244,7 @@ export default function App() {
       const data = await loadProjectFromFile()
       if (!data) return
       const q = data.quote || {}
-      setCurrentQuote({ id: q.id || null })
+      setCurrentQuote({ id: q.id || null, project_name: q.project_name || '' })
       setProjectData({
         project_name: q.project_name || '',
         address: q.address || '',
@@ -238,7 +264,10 @@ export default function App() {
   const handleRename = async () => {
     const newName = window.prompt('請輸入新案名：', projectData.project_name || '')
     if (newName === null) return
-    setProjectData(p => ({ ...p, project_name: newName.trim() }))
+    const trimmed = newName.trim()
+    setProjectData(p => ({ ...p, project_name: trimmed }))
+    // 同步更新 currentQuote.project_name，讓 handleSave 知道這是「重新命名」而非另存新案
+    setCurrentQuote(q => q ? { ...q, project_name: trimmed } : q)
     showStatus('案名已更新（請記得儲存）')
   }
 
@@ -788,7 +817,7 @@ export default function App() {
           onOpen={handleOpenQuote}
           onOpenFileData={(data) => {
             const q = data.quote || {}
-            setCurrentQuote({ id: q.id || null })
+            setCurrentQuote({ id: q.id || null, project_name: q.project_name || '' })
             setProjectData({
               project_name: q.project_name || '',
               address: q.address || '',

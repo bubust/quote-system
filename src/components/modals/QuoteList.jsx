@@ -74,7 +74,7 @@ export default function QuoteList({ onClose, onOpen, onOpenFileData }) {
         parent_id:      item.parent_id      ?? null,
       }))
       const { id: _drop, ...quoteData } = quote
-      await saveQuote(quoteData, cleanItems)
+      await saveQuote(quoteData, cleanItems) // return value ({ quote, items }) not needed here
       deleteLocalQuote(localId)
       setLocalQuotes(listLocalQuotes())
       loadList()

@@ -43,6 +43,7 @@ export default function TransportCalc({ onClose, onAddToQuote, quoteItems = [] }
     Object.fromEntries(FLOOR_LIST.map(f => [f, { ...TRANSPORT_DB_INIT[f] }]))
   )
   const [markup, setMarkup] = useState(0)
+  const [matOverride, setMatOverride] = useState({})
 
   // 從估價單按樓層分別計算材料用量
   const matQtyByFloor = useMemo(() => {
@@ -95,35 +96,36 @@ export default function TransportCalc({ onClose, onAddToQuote, quoteItems = [] }
     return result
   }, [quoteItems])
 
-  // 全部樓層合計（供顯示用）
-  const matQty = useMemo(() => {
-    const result = { 磚頭: 0, 水泥: 0, 沙: 0, 黏著劑: 0, 磁磚: 0 }
-    FLOOR_LIST.forEach(floor => {
-      MAT_COLS.forEach(mat => { result[mat] += matQtyByFloor[floor]?.[mat] || 0 })
-    })
-    result.水泥 = parseFloat(result.水泥.toFixed(1))
-    result.沙 = parseFloat(result.沙.toFixed(2))
-    result.黏著劑 = parseFloat(result.黏著劑.toFixed(1))
-    return result
-  }, [matQtyByFloor])
-
-  const hasMaterials = Object.values(matQty).some(v => v > 0)
-
-  // 所有樓層搬運費計算
+  // 所有樓層搬運費計算（含手動覆寫數量）
   const allFloorData = useMemo(() => {
     return FLOOR_LIST.map(floor => {
       const prices = db[floor] || {}
       let total = 0
       const mats = MAT_COLS.map(mat => {
-        const qty = matQtyByFloor[floor]?.[mat] || 0
+        const autoQty = matQtyByFloor[floor]?.[mat] || 0
+        const qty = matOverride[floor]?.[mat] ?? autoQty
         const price = prices[mat]
         const cost = (qty && price != null) ? qty * toNumber(price) : 0
         total += cost
-        return { mat, qty, price, cost }
+        return { mat, qty, autoQty, price, cost }
       })
       return { floor, mats, total }
     })
-  }, [db, matQtyByFloor])
+  }, [db, matQtyByFloor, matOverride])
+
+  // 全部樓層合計（依實際用量，含覆寫）
+  const matQty = useMemo(() => {
+    const result = { 磚頭: 0, 水泥: 0, 沙: 0, 黏著劑: 0, 磁磚: 0 }
+    allFloorData.forEach(({ mats }) => {
+      mats.forEach(({ mat, qty }) => { result[mat] += qty })
+    })
+    result.水泥 = parseFloat(result.水泥.toFixed(1))
+    result.沙 = parseFloat(result.沙.toFixed(2))
+    result.黏著劑 = parseFloat(result.黏著劑.toFixed(1))
+    return result
+  }, [allFloorData])
+
+  const hasMaterials = Object.values(matQty).some(v => v > 0)
 
   const grandTotal = allFloorData.reduce((s, f) => s + f.total, 0)
 
@@ -132,6 +134,18 @@ export default function TransportCalc({ onClose, onAddToQuote, quoteItems = [] }
       ...prev,
       [floor]: { ...prev[floor], [mat]: val === '' ? null : toNumber(val) },
     }))
+  }
+
+  const updateOverride = (floor, mat, val) => {
+    setMatOverride(prev => {
+      const floorData = { ...(prev[floor] || {}) }
+      if (val === '') {
+        delete floorData[mat]
+      } else {
+        floorData[mat] = parseFloat(val)
+      }
+      return { ...prev, [floor]: floorData }
+    })
   }
 
   const handleExport = () => {
@@ -307,16 +321,35 @@ export default function TransportCalc({ onClose, onAddToQuote, quoteItems = [] }
                 {allFloorData.map(({ floor, mats, total }) => (
                   <tr key={floor}>
                     <td style={{ fontWeight: 700, color: '#1565C0', textAlign: 'center' }}>{floor}</td>
-                    {mats.map(({ mat, qty, cost }) => (
+                    {mats.map(({ mat, qty, autoQty, cost }) => {
+                      const isOverridden = matOverride[floor]?.[mat] !== undefined
+                      return (
                       <React.Fragment key={mat}>
-                        <td style={{ textAlign: 'right', color: '#555', paddingRight: 4 }}>
-                          {qty > 0 ? qty : '—'}
+                        <td style={{ padding: '1px 2px' }}>
+                          <input
+                            type="number"
+                            value={isOverridden ? matOverride[floor][mat] : (autoQty > 0 ? autoQty : '')}
+                            onChange={e => updateOverride(floor, mat, e.target.value)}
+                            min={0}
+                            placeholder="—"
+                            title={isOverridden ? `自動：${autoQty}` : '自動計算'}
+                            style={{
+                              width: 60,
+                              textAlign: 'right',
+                              fontSize: 11,
+                              background: isOverridden ? '#FFF9C4' : 'transparent',
+                              border: isOverridden ? '1px solid #FFA000' : '1px solid transparent',
+                              borderRadius: 3,
+                              padding: '1px 3px',
+                            }}
+                          />
                         </td>
                         <td style={{ textAlign: 'right', fontWeight: cost > 0 ? 600 : 400, color: cost > 0 ? '#1565C0' : '#ccc' }}>
                           {cost > 0 ? formatNTD(cost) : (qty > 0 && (db[floor][mat] == null || db[floor][mat] === '') ? <span style={{ color: '#ff9800', fontSize: 10 }}>未設價</span> : '—')}
                         </td>
                       </React.Fragment>
-                    ))}
+                    )
+                  })}
                     <td style={{ textAlign: 'right', fontWeight: 700, color: total > 0 ? '#E65100' : '#ccc' }}>
                       {total > 0 ? (
                         <>

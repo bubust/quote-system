@@ -327,16 +327,35 @@ export async function saveQuote(quoteData, items) {
   }
 
   if (items && items.length > 0) {
+    // 先刪除此 quote 的所有舊明細
     await supabase.from('quote_items').delete().eq('quote_id', quote.id)
-    const itemsToInsert = items.map((item, idx) => ({
-      ...item,
-      quote_id: quote.id,
-      sort_order: idx,
-    }))
-    const { error } = await supabase.from('quote_items').insert(itemsToInsert)
+
+    // 重新產生所有 item 的 UUID，避免因跨 quote 的 ID 衝突導致 insert 失敗
+    const genId = () => (crypto.randomUUID ? crypto.randomUUID() : `item_${Date.now()}_${Math.random().toString(36).slice(2)}`)
+    const idMap = {}
+    items.forEach(item => { if (item.id) idMap[item.id] = genId() })
+
+    const KNOWN_COLS = [
+      'id', 'quote_id', 'sequence', 'floor_location', 'work_type', 'item_name',
+      'unit_price', 'quantity', 'unit', 'total_price', 'notes', 'extra_notes',
+      'length_cm', 'width_cm', 'height_cm', 'sort_order', 'is_sub_item', 'parent_id',
+    ]
+    const itemsToInsert = items.map((item, idx) => {
+      const clean = {}
+      KNOWN_COLS.forEach(col => { if (col in item) clean[col] = item[col] })
+      clean.id       = idMap[item.id] || genId()
+      clean.quote_id = quote.id
+      clean.parent_id = item.parent_id ? (idMap[item.parent_id] ?? null) : null
+      clean.sort_order = idx
+      return clean
+    })
+
+    const { data: savedItems, error } = await supabase
+      .from('quote_items').insert(itemsToInsert).select()
     if (error) throw error
+    return { quote, items: savedItems || [] }
   }
-  return quote
+  return { quote, items: [] }
 }
 
 export async function loadQuote(id) {
