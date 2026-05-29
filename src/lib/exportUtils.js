@@ -215,32 +215,13 @@ export async function exportExcel(quoteData, items, companyInfo, type = 'quote')
 export function exportPDF(quoteData, items, companyInfo, type = 'quote') {
   const groups = groupItemsWithSubtotals(items)
   const grand = calculateGrandTotal(items)
-  let seq = 1
 
   const rowsHtml = groups.map(({ category, items: catItems }) => {
     const sub = catItems.filter(i => !i.is_sub_item).reduce((s, i) => s + toNumber(i.total_price), 0)
-    const itemRows = catItems.map(item => `
-      <tr>
-        <td style="text-align:center">${item.is_sub_item ? '' : seq++}</td>
-        <td>${item.floor_location || ''}</td>
-        <td>${item.work_type || ''}</td>
-        <td>${item.item_name || ''}</td>
-        <td style="text-align:right">${item.unit_price != null ? formatNTD(item.unit_price) : ''}</td>
-        <td style="text-align:center">${item.quantity != null ? toNumber(item.quantity) : ''}</td>
-        <td style="text-align:center">${item.unit || ''}</td>
-        <td style="text-align:right">${formatNTD(item.total_price)}</td>
-        <td style="font-size:10px;white-space:pre-wrap">${(item.notes || '').replace(/\n/g,'<br/>')}</td>
-      </tr>`).join('')
-
     return `
-      <tr style="background:#FFF9C4">
-        <td colspan="9" style="font-weight:700;padding:4px 6px">【${category}】</td>
-      </tr>
-      ${itemRows}
-      <tr style="background:#E3F2FD">
-        <td colspan="7" style="text-align:right;font-weight:700">小計</td>
-        <td style="text-align:right;font-weight:700">${formatNTD(sub)}</td>
-        <td></td>
+      <tr>
+        <td colspan="2" style="font-weight:700;padding:5px 8px;background:#FFF9C4">【${category}】</td>
+        <td style="text-align:right;font-weight:700;background:#FFF9C4">${formatNTD(sub)}</td>
       </tr>`
   }).join('')
 
@@ -276,18 +257,17 @@ export function exportPDF(quoteData, items, companyInfo, type = 'quote') {
 <meta charset="UTF-8">
 <title>${type === 'contract' ? '室內設計裝修工程承攬合約書' : '整建工程估價單'}</title>
 <style>
-  @page { size: A4 landscape; margin: 12mm; }
+  @page { size: A4 portrait; margin: 16mm; }
   * { box-sizing: border-box; }
-  body { font-family: 'Microsoft JhengHei', '微軟正黑體', 'Noto Sans TC', sans-serif; font-size: 12px; color: #111; margin: 0; padding: 0; }
-  h1 { text-align: center; font-size: 18px; margin: 0 0 4px; }
-  h2 { text-align: center; font-size: 14px; margin: 0 0 10px; font-weight: 400; }
-  .meta { margin-bottom: 8px; line-height: 1.8; }
-  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-  th { background: #1565C0; color: #fff; padding: 5px 4px; font-size: 11px; }
-  td { border: 1px solid #ccc; padding: 3px 4px; font-size: 11px; vertical-align: top; }
-  tr:nth-child(even) { background: #F9F9F9; }
-  .total-row { background: #BBDEFB; font-weight: 700; font-size: 13px; }
-  .footer { margin-top: 10px; text-align: center; color: #666; font-size: 10px; border-top: 1px solid #ddd; padding-top: 6px; }
+  body { font-family: 'Microsoft JhengHei', '微軟正黑體', 'Noto Sans TC', sans-serif; font-size: 13px; color: #111; margin: 0; padding: 0; }
+  h1 { text-align: center; font-size: 20px; margin: 0 0 4px; }
+  h2 { text-align: center; font-size: 14px; margin: 0 0 12px; font-weight: 400; }
+  .meta { margin-bottom: 6px; line-height: 1.8; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  th { background: #1565C0; color: #fff; padding: 7px 8px; font-size: 13px; }
+  td { border: 1px solid #ccc; padding: 6px 8px; font-size: 13px; vertical-align: middle; }
+  .total-row td { background: #BBDEFB; font-weight: 700; font-size: 14px; }
+  .footer { margin-top: 14px; text-align: center; color: #666; font-size: 11px; border-top: 1px solid #ddd; padding-top: 8px; }
   @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
 </style>
 </head>
@@ -304,23 +284,15 @@ export function exportPDF(quoteData, items, companyInfo, type = 'quote') {
 <table>
   <thead>
     <tr>
-      <th style="width:4%">項次</th>
-      <th style="width:7%">施工位置</th>
-      <th style="width:9%">工種</th>
-      <th style="width:16%">施工項目</th>
-      <th style="width:8%">單價</th>
-      <th style="width:6%">數量</th>
-      <th style="width:5%">單位</th>
-      <th style="width:9%">總價</th>
-      <th>備考</th>
+      <th colspan="2" style="text-align:left">工程項目</th>
+      <th style="width:20%;text-align:right">金額</th>
     </tr>
   </thead>
   <tbody>
     ${rowsHtml}
     <tr class="total-row">
-      <td colspan="7" style="text-align:right;border:1px solid #90CAF9">合計</td>
+      <td colspan="2" style="text-align:right;border:1px solid #90CAF9">合計</td>
       <td style="text-align:right;border:1px solid #90CAF9">${formatNTD(grand)}</td>
-      <td style="border:1px solid #90CAF9"></td>
     </tr>
   </tbody>
 </table>
