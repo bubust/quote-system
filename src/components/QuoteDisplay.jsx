@@ -267,6 +267,22 @@ export default function QuoteDisplay({ items, onUpdateItem, onDeleteItem, onMove
   const [dragOverId, setDragOverId] = useState(null)
   const [dragBefore, setDragBefore] = useState(false)
   const draggingId = React.useRef(null)
+  const scrollTimer = React.useRef(null)
+
+  const stopAutoScroll = () => {
+    if (scrollTimer.current) { clearInterval(scrollTimer.current); scrollTimer.current = null }
+  }
+
+  const updateAutoScroll = (clientY) => {
+    const EDGE = 120, SPEED = 8
+    const h = window.innerHeight
+    stopAutoScroll()
+    if (clientY < EDGE) {
+      scrollTimer.current = setInterval(() => window.scrollBy(0, -SPEED), 16)
+    } else if (clientY > h - EDGE) {
+      scrollTimer.current = setInterval(() => window.scrollBy(0, SPEED), 16)
+    }
+  }
 
   if (!items || items.length === 0) {
     return (
@@ -345,12 +361,14 @@ export default function QuoteDisplay({ items, onUpdateItem, onDeleteItem, onMove
                       onDragOver={e => {
                         if (item.is_sub_item || !draggingId.current || draggingId.current === item.id) return
                         e.preventDefault()
+                        updateAutoScroll(e.clientY)
                         const rect = e.currentTarget.getBoundingClientRect()
                         setDragBefore(e.clientY < rect.top + rect.height / 2)
                         setDragOverId(item.id)
                       }}
                       onDrop={e => {
                         e.preventDefault()
+                        stopAutoScroll()
                         if (draggingId.current && draggingId.current !== item.id && !item.is_sub_item) {
                           onReorderItem(draggingId.current, item.id, dragBefore)
                         }
@@ -375,6 +393,7 @@ export default function QuoteDisplay({ items, onUpdateItem, onDeleteItem, onMove
                           e.currentTarget.closest('tr').style.opacity = ''
                           draggingId.current = null
                           setDragOverId(null)
+                          stopAutoScroll()
                         }}
                         style={{ textAlign: 'center', color: item.is_sub_item ? '#bbb' : '#999', cursor: item.is_sub_item ? undefined : 'grab', userSelect: 'none', fontSize: 12 }}
                       >
