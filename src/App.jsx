@@ -86,11 +86,6 @@ export default function App() {
     return () => window.removeEventListener('keydown', handler)
   }, [])
 
-  // 每次 handleSave 更新時，同步更新 ref
-  useEffect(() => {
-    handleSaveRef.current = handleSave
-  }, [handleSave])
-
   const initApp = async () => {
     setIsLoading(true)
     setLoadError('')
@@ -220,6 +215,11 @@ export default function App() {
       setIsSaving(false)
     }
   }, [projectData, currentQuote, quoteItems])
+
+  // 每次 handleSave 更新時，同步更新 ref（必須放在 handleSave 宣告後）
+  useEffect(() => {
+    handleSaveRef.current = handleSave
+  }, [handleSave])
 
   // ── 存到本機檔案 ────────────────────────────────────────────────
   const handleSaveToFile = async () => {
