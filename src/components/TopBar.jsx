@@ -15,6 +15,7 @@ export default function TopBar({
   onDemolition,
   onPlumbing,
   projectName,
+  hasExistingQuote,
   isSaving,
 }) {
   return (
@@ -72,11 +73,17 @@ export default function TopBar({
         🏢 公司設定
       </button>
 
-      {projectName && (
-        <span style={{ marginLeft: 'auto', fontSize: 13, color: '#555', fontStyle: 'italic' }}>
-          目前案件：<strong style={{ color: '#1565C0' }}>{projectName}</strong>
-        </span>
-      )}
+      <span style={{ marginLeft: 'auto', fontSize: 13, fontStyle: 'italic' }}>
+        {hasExistingQuote ? (
+          <span style={{ color: '#555' }}>
+            正在編輯：<strong style={{ color: '#1565C0' }}>{projectName || '（未命名）'}</strong>
+          </span>
+        ) : (
+          <span style={{ color: '#E65100', fontWeight: 600 }}>
+            🆕 新案件（尚未儲存）
+          </span>
+        )}
+      </span>
     </div>
   )
 }

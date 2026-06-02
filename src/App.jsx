@@ -71,6 +71,8 @@ export default function App() {
   const [showMaterialList, setShowMaterialList] = useState(false)
   const [showDemolition, setShowDemolition] = useState(false)
   const [showPlumbing, setShowPlumbing] = useState(false)
+  // 儲存確認 modal（取代 window.confirm，避免誤覆蓋舊案）
+  const [saveConfirm, setSaveConfirm] = useState(null) // { originalName, currentName }
 
   // ── 初始化 ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -145,7 +147,7 @@ export default function App() {
 
   // ── 新建案 ─────────────────────────────────────────────────────
   const handleNew = () => {
-    if (quoteItems.length > 0 && !window.confirm('新建案將清除目前未儲存的資料，確定繼續？')) return
+    // 直接切換到新案件，不顯示 confirm（使用者可從專案清單重開舊案）
     setCurrentQuote(null)
     setProjectData(EMPTY_PROJECT)
     setQuoteItems([])
@@ -153,61 +155,45 @@ export default function App() {
     setSelectedCategory('')
     setSelectedItem(null)
     setInputData(EMPTY_INPUT)
-    showStatus('新建案已建立')
+    showStatus('新建案已建立（目前尚未儲存）')
   }
 
-  // ── 儲存（含 localStorage fallback）───────────────────────────
-  const handleSave = useCallback(async () => {
-    // 防呆：若目前明細數量遠少於上次開啟時，先確認
+  // ── 實際執行儲存（saveAsNew=true 表示另存新案）────────────────
+  const doSave = useCallback(async (saveAsNew = false) => {
+    setSaveConfirm(null)
+    setIsSaving(true)
+    const saveId = saveAsNew ? null : (currentQuote?.id || null)
+
+    // 防呆：明細數量大幅減少時警告
     const currentParentCount = quoteItems.filter(i => !i.is_sub_item).length
     if (
-      currentQuote?.id &&
+      !saveAsNew && saveId &&
       loadedItemCount.current >= 3 &&
       currentParentCount < loadedItemCount.current / 2
     ) {
       const ok = window.confirm(
-        `⚠️ 警告：上次開啟時有 ${loadedItemCount.current} 筆明細，現在只有 ${currentParentCount} 筆。\n` +
-        `確定要儲存嗎？儲存後原有資料會被覆蓋。`
+        `⚠️ 警告：上次開啟時有 ${loadedItemCount.current} 筆明細，現在只有 ${currentParentCount} 筆。\n確定要儲存嗎？`
       )
       if (!ok) { setIsSaving(false); return }
     }
-    setIsSaving(true)
+
     try {
-      let saveId = currentQuote?.id || null
-
-      // 若案名與載入時不同，彈窗讓使用者確認：更新原案 or 另存新案
-      if (
-        currentQuote?.id &&
-        currentQuote.project_name != null &&
-        projectData.project_name !== currentQuote.project_name
-      ) {
-        const shouldUpdate = window.confirm(
-          `⚠️ 您修改了案名\n\n` +
-          `原案件：「${currentQuote.project_name}」\n` +
-          `目前案名：「${projectData.project_name}」\n\n` +
-          `按「確定」→ 更新原案件（覆蓋舊資料）\n` +
-          `按「取消」→ 另存為全新案件`
-        )
-        if (!shouldUpdate) saveId = null  // 另存新案
-      }
-
       const { quote, items: savedItems } = await saveQuote(
         { ...projectData, id: saveId },
         quoteItems
       )
       setCurrentQuote(quote)
-      // 用 DB 回傳的 items 更新 state，確保 ID 與 DB 一致，避免後續 update/delete 出錯
       if (savedItems && savedItems.length > 0) setQuoteItems(savedItems)
-      showStatus('儲存成功 ✓ (雲端)')
+      loadedItemCount.current = (savedItems || []).filter(i => !i.is_sub_item).length
+      showStatus(saveAsNew ? '另存新案成功 ✓ (雲端)' : '儲存成功 ✓ (雲端)')
     } catch (e) {
-      // 本地備用
       try {
         const localQuote = saveQuoteToLocal(
-          { ...projectData, id: currentQuote?.id },
+          { ...projectData, id: saveAsNew ? null : currentQuote?.id },
           quoteItems
         )
         setCurrentQuote(localQuote)
-        showStatus('儲存成功 ✓ (本機)')
+        showStatus(saveAsNew ? '另存新案成功 ✓ (本機)' : '儲存成功 ✓ (本機)')
       } catch (e2) {
         showStatus('儲存失敗：' + e2.message)
       }
@@ -215,6 +201,20 @@ export default function App() {
       setIsSaving(false)
     }
   }, [projectData, currentQuote, quoteItems])
+
+  // ── 儲存（若是現有案件，先顯示確認 modal）────────────────────
+  const handleSave = useCallback(() => {
+    if (currentQuote?.id) {
+      // 現有案件：彈出確認 modal，讓使用者明確選擇
+      setSaveConfirm({
+        originalName: currentQuote.project_name || '（未命名）',
+        currentName: projectData.project_name,
+      })
+    } else {
+      // 新案件（currentQuote.id = null）：直接建立新記錄，不需確認
+      doSave(false)
+    }
+  }, [currentQuote, projectData, doSave])
 
   // 每次 handleSave 更新時，同步更新 ref（必須放在 handleSave 宣告後）
   useEffect(() => {
@@ -701,6 +701,7 @@ export default function App() {
         onDemolition={() => setShowDemolition(true)}
         onPlumbing={() => setShowPlumbing(true)}
         projectName={projectData.project_name}
+        hasExistingQuote={!!currentQuote?.id}
         isSaving={isSaving}
       />
 
@@ -850,6 +851,49 @@ export default function App() {
           onClose={() => setShowPlumbing(false)}
           onAddToQuote={handleAddTransportItems}
         />
+      )}
+
+      {/* ── 儲存確認 Modal（避免誤覆蓋舊案） ─────────────────────── */}
+      {saveConfirm && (
+        <div className="modal-overlay" style={{ zIndex: 2000 }}>
+          <div className="modal-box" style={{ maxWidth: 460, width: '90vw' }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#1565C0', marginBottom: 16 }}>
+              💾 確認儲存
+            </div>
+            <div style={{ marginBottom: 10, fontSize: 14 }}>
+              您正在修改已存在的案件：
+            </div>
+            <div style={{
+              background: '#FFF3E0', border: '1px solid #FFB74D',
+              borderRadius: 6, padding: '10px 14px', marginBottom: 12,
+              fontSize: 15, fontWeight: 600, color: '#E65100',
+            }}>
+              {saveConfirm.originalName}
+            </div>
+            {saveConfirm.currentName !== saveConfirm.originalName && (
+              <div style={{
+                background: '#FFF9C4', border: '1px solid #F9A825',
+                borderRadius: 6, padding: '8px 12px', marginBottom: 12, fontSize: 13,
+              }}>
+                ⚠️ 案名已更改為：「{saveConfirm.currentName}」
+              </div>
+            )}
+            <div style={{ fontSize: 13, color: '#666', marginBottom: 20 }}>
+              請選擇要如何儲存：
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+              <button className="btn-gray" onClick={() => setSaveConfirm(null)}>
+                取消（不儲存）
+              </button>
+              <button className="btn-blue" onClick={() => doSave(true)}>
+                📄 另存為新案件
+              </button>
+              <button className="btn-red" onClick={() => doSave(false)}>
+                ⚠️ 更新原案件
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
