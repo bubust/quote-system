@@ -98,6 +98,11 @@ export default function App() {
         setCompanyInfo(co)
       } catch (e) {
         console.warn('公司設定載入失敗（可能尚未初始化）', e.message)
+        // Supabase 失敗，從 localStorage 讀取
+        try {
+          const local = JSON.parse(localStorage.getItem('qs_company_settings'))
+          if (local) setCompanyInfo(local)
+        } catch {}
       }
 
       // 確保初始資料存在
