@@ -266,6 +266,12 @@ export default function QuoteDisplay({ items, onUpdateItem, onDeleteItem, onMove
   const [notesModal, setNotesModal] = useState(null)
   const [dragOverId, setDragOverId] = useState(null)
   const [dragBefore, setDragBefore] = useState(false)
+  const [taxRate, setTaxRate] = useState(() => {
+    const saved = localStorage.getItem('qs_tax_rate')
+    return saved !== null ? Number(saved) : 5
+  })
+  const [editingTaxRate, setEditingTaxRate] = useState(false)
+  const [taxInput, setTaxInput] = useState('')
   const draggingId = React.useRef(null)
   const scrollTimer = React.useRef(null)
 
@@ -308,6 +314,8 @@ export default function QuoteDisplay({ items, onUpdateItem, onDeleteItem, onMove
   })
 
   const grandTotal = visibleItems.reduce((s, i) => s + toNumber(i.total_price), 0)
+  const taxAmount = Math.round(grandTotal * taxRate / 100)
+  const totalWithTax = grandTotal + taxAmount
 
   return (
     <div style={{ overflowX: 'auto', padding: '0 0 12px 0' }}>
@@ -484,6 +492,52 @@ export default function QuoteDisplay({ items, onUpdateItem, onDeleteItem, onMove
             </td>
             <td style={{ textAlign: 'right', fontWeight: 700, fontSize: 15 }}>
               {formatNTD(grandTotal)}
+            </td>
+            <td colSpan={2} />
+          </tr>
+
+          <tr style={{ background: '#FFF8E1' }}>
+            <td colSpan={7} style={{ textAlign: 'right', paddingRight: 8, fontSize: 14, color: '#795548' }}>
+              稅款&nbsp;
+              {editingTaxRate ? (
+                <input
+                  autoFocus
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={taxInput}
+                  onChange={e => setTaxInput(e.target.value)}
+                  onBlur={() => {
+                    const v = Math.max(0, Math.min(100, Number(taxInput) || 0))
+                    setTaxRate(v)
+                    localStorage.setItem('qs_tax_rate', v)
+                    setEditingTaxRate(false)
+                  }}
+                  onKeyDown={e => { if (e.key === 'Enter') e.target.blur() }}
+                  style={{ width: 48, textAlign: 'center', fontSize: 13, border: '1px solid #795548', borderRadius: 3, padding: '1px 4px' }}
+                />
+              ) : (
+                <span
+                  onClick={() => { setTaxInput(String(taxRate)); setEditingTaxRate(true) }}
+                  title="點擊修改稅率"
+                  style={{ cursor: 'pointer', borderBottom: '1px dashed #795548', color: '#795548', fontWeight: 700 }}
+                >
+                  {taxRate}%
+                </span>
+              )}
+            </td>
+            <td style={{ textAlign: 'right', fontSize: 14, color: '#795548', fontWeight: 600 }}>
+              {formatNTD(taxAmount)}
+            </td>
+            <td colSpan={2} />
+          </tr>
+
+          <tr style={{ background: '#E8F5E9' }}>
+            <td colSpan={7} style={{ textAlign: 'right', paddingRight: 8, fontWeight: 700, fontSize: 15, color: '#2E7D32' }}>
+              含稅總計
+            </td>
+            <td style={{ textAlign: 'right', fontWeight: 700, fontSize: 15, color: '#2E7D32' }}>
+              {formatNTD(totalWithTax)}
             </td>
             <td colSpan={2} />
           </tr>
