@@ -14,15 +14,16 @@ export default function ExportModal({ quoteData, items, companyInfo, onClose }) 
     }
     setExporting(true)
     setMsg('')
+    const taxRate = Number(localStorage.getItem('qs_tax_rate') ?? 0)
     try {
       if (format === 'excel') {
-        await exportExcel(quoteData, items, companyInfo, docType)
+        await exportExcel(quoteData, items, companyInfo, docType, taxRate)
         setMsg('Excel 匯出成功，請查看下載資料夾')
       } else if (format === 'pdf') {
-        exportPDF(quoteData, items, companyInfo, docType)
+        exportPDF(quoteData, items, companyInfo, docType, taxRate)
         setMsg('PDF 匯出成功（注意：PDF 中文需安裝字型，建議使用 Word 或 Excel）')
       } else if (format === 'word') {
-        await exportWord(quoteData, items, companyInfo, docType)
+        await exportWord(quoteData, items, companyInfo, docType, taxRate)
         setMsg('Word 匯出成功，請查看下載資料夾')
       }
     } catch (e) {

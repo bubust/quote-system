@@ -31,9 +31,11 @@ function today() {
 }
 
 // ─── EXCEL 匯出（ExcelJS，支援列群組折疊）──────────────────────
-export async function exportExcel(quoteData, items, companyInfo, type = 'quote') {
+export async function exportExcel(quoteData, items, companyInfo, type = 'quote', taxRate = 0) {
   const groups = groupItemsWithSubtotals(items)
   const grand = calculateGrandTotal(items)
+  const taxAmount = Math.round(grand * taxRate / 100)
+  const totalWithTax = grand + taxAmount
   const dateStr = today()
 
   const wb = new ExcelJS.Workbook()
@@ -192,7 +194,31 @@ export async function exportExcel(quoteData, items, companyInfo, type = 'quote')
   totalRow.getCell(8).style = { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1565C0' } }, font: { name: '微軟正黑體', size: 12, bold: true, color: { argb: 'FFFFFFFF' } }, alignment: { horizontal: 'right', vertical: 'middle' }, numFmt: '#,##0', border: { top: { style: 'thin', color: { argb: 'FF0d47a1' } }, bottom: { style: 'thin', color: { argb: 'FF0d47a1' } }, left: { style: 'thin', color: { argb: 'FF0d47a1' } }, right: { style: 'thin', color: { argb: 'FF0d47a1' } } } }
   totalRow.getCell(9).style = { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1565C0' } }, border: { top: { style: 'thin', color: { argb: 'FF0d47a1' } }, bottom: { style: 'thin', color: { argb: 'FF0d47a1' } }, left: { style: 'thin', color: { argb: 'FF0d47a1' } }, right: { style: 'thin', color: { argb: 'FF0d47a1' } } } }
   totalRow.height = 20
-  rowIdx += 2
+  rowIdx++
+
+  if (taxRate > 0) {
+    ws.mergeCells(rowIdx, 1, rowIdx, 7)
+    const taxRow = ws.getRow(rowIdx)
+    taxRow.getCell(1).value = `稅款 ${taxRate}%`
+    taxRow.getCell(1).style = { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF8E1' } }, font: { name: '微軟正黑體', size: 11, bold: true, color: { argb: 'FF795548' } }, alignment: { horizontal: 'right', vertical: 'middle' }, border: { top: { style: 'thin', color: { argb: 'FFCCCCCC' } }, bottom: { style: 'thin', color: { argb: 'FFCCCCCC' } }, left: { style: 'thin', color: { argb: 'FFCCCCCC' } }, right: { style: 'thin', color: { argb: 'FFCCCCCC' } } } }
+    taxRow.getCell(8).value = taxAmount
+    taxRow.getCell(8).style = { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF8E1' } }, font: { name: '微軟正黑體', size: 11, bold: true, color: { argb: 'FF795548' } }, alignment: { horizontal: 'right', vertical: 'middle' }, numFmt: '#,##0', border: { top: { style: 'thin', color: { argb: 'FFCCCCCC' } }, bottom: { style: 'thin', color: { argb: 'FFCCCCCC' } }, left: { style: 'thin', color: { argb: 'FFCCCCCC' } }, right: { style: 'thin', color: { argb: 'FFCCCCCC' } } } }
+    taxRow.getCell(9).style = { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF8E1' } }, border: { top: { style: 'thin', color: { argb: 'FFCCCCCC' } }, bottom: { style: 'thin', color: { argb: 'FFCCCCCC' } }, left: { style: 'thin', color: { argb: 'FFCCCCCC' } }, right: { style: 'thin', color: { argb: 'FFCCCCCC' } } } }
+    taxRow.height = 18
+    rowIdx++
+
+    ws.mergeCells(rowIdx, 1, rowIdx, 7)
+    const withTaxRow = ws.getRow(rowIdx)
+    withTaxRow.getCell(1).value = '含稅總計'
+    withTaxRow.getCell(1).style = { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2E7D32' } }, font: { name: '微軟正黑體', size: 12, bold: true, color: { argb: 'FFFFFFFF' } }, alignment: { horizontal: 'right', vertical: 'middle' }, border: { top: { style: 'thin', color: { argb: 'FF1B5E20' } }, bottom: { style: 'thin', color: { argb: 'FF1B5E20' } }, left: { style: 'thin', color: { argb: 'FF1B5E20' } }, right: { style: 'thin', color: { argb: 'FF1B5E20' } } } }
+    withTaxRow.getCell(8).value = totalWithTax
+    withTaxRow.getCell(8).style = { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2E7D32' } }, font: { name: '微軟正黑體', size: 12, bold: true, color: { argb: 'FFFFFFFF' } }, alignment: { horizontal: 'right', vertical: 'middle' }, numFmt: '#,##0', border: { top: { style: 'thin', color: { argb: 'FF1B5E20' } }, bottom: { style: 'thin', color: { argb: 'FF1B5E20' } }, left: { style: 'thin', color: { argb: 'FF1B5E20' } }, right: { style: 'thin', color: { argb: 'FF1B5E20' } } } }
+    withTaxRow.getCell(9).style = { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2E7D32' } }, border: { top: { style: 'thin', color: { argb: 'FF1B5E20' } }, bottom: { style: 'thin', color: { argb: 'FF1B5E20' } }, left: { style: 'thin', color: { argb: 'FF1B5E20' } }, right: { style: 'thin', color: { argb: 'FF1B5E20' } } } }
+    withTaxRow.height = 20
+    rowIdx++
+  }
+
+  rowIdx++
 
   // 公司資訊
   ws.mergeCells(rowIdx, 6, rowIdx, COLS)
@@ -212,9 +238,11 @@ export async function exportExcel(quoteData, items, companyInfo, type = 'quote')
 }
 
 // ─── PDF 匯出（瀏覽器列印，完整支援中文）────────────────────────
-export function exportPDF(quoteData, items, companyInfo, type = 'quote') {
+export function exportPDF(quoteData, items, companyInfo, type = 'quote', taxRate = 0) {
   const groups = groupItemsWithSubtotals(items)
   const grand = calculateGrandTotal(items)
+  const taxAmount = Math.round(grand * taxRate / 100)
+  const totalWithTax = grand + taxAmount
   let seq = 1
 
   // 將 is_sub_item 的金額合併到前一個主項目，不顯示細項
@@ -335,6 +363,17 @@ export function exportPDF(quoteData, items, companyInfo, type = 'quote') {
       <td style="text-align:right;border:1px solid #90CAF9">${formatNTD(grand)}</td>
       <td style="border:1px solid #90CAF9"></td>
     </tr>
+    ${taxRate > 0 ? `
+    <tr style="background:#FFF8E1">
+      <td colspan="7" style="text-align:right;border:1px solid #ccc;color:#795548;font-weight:700">稅款 ${taxRate}%</td>
+      <td style="text-align:right;border:1px solid #ccc;color:#795548;font-weight:700">${formatNTD(taxAmount)}</td>
+      <td style="border:1px solid #ccc"></td>
+    </tr>
+    <tr style="background:#2E7D32">
+      <td colspan="7" style="text-align:right;border:1px solid #1B5E20;color:#fff;font-weight:700;font-size:13px">含稅總計</td>
+      <td style="text-align:right;border:1px solid #1B5E20;color:#fff;font-weight:700;font-size:13px">${formatNTD(totalWithTax)}</td>
+      <td style="border:1px solid #1B5E20"></td>
+    </tr>` : ''}
   </tbody>
 </table>
 ${contractSection}
@@ -351,9 +390,11 @@ ${contractSection}
 }
 
 // ─── WORD 匯出 ───────────────────────────────────────────────────
-export async function exportWord(quoteData, items, companyInfo, type = 'quote') {
+export async function exportWord(quoteData, items, companyInfo, type = 'quote', taxRate = 0) {
   const groups = groupItemsWithSubtotals(items)
   const grand = calculateGrandTotal(items)
+  const taxAmount = Math.round(grand * taxRate / 100)
+  const totalWithTax = grand + taxAmount
 
   const makeBorder = () => ({
     top: { style: BorderStyle.SINGLE, size: 1, color: '999999' },
@@ -425,6 +466,23 @@ export async function exportWord(quoteData, items, companyInfo, type = 'quote') 
       makeCell('', { shade: 'BBDEFB' }),
     ],
   }))
+
+  if (taxRate > 0) {
+    dataRows.push(new TableRow({
+      children: [
+        makeCell(`稅款 ${taxRate}%`, { bold: true, shade: 'FFF8E1', colSpan: 7, align: AlignmentType.RIGHT, color: '795548' }),
+        makeCell(formatNTD(taxAmount), { bold: true, shade: 'FFF8E1', align: AlignmentType.RIGHT, color: '795548' }),
+        makeCell('', { shade: 'FFF8E1' }),
+      ],
+    }))
+    dataRows.push(new TableRow({
+      children: [
+        makeCell('含稅總計', { bold: true, shade: '2E7D32', colSpan: 7, align: AlignmentType.RIGHT, color: 'FFFFFF' }),
+        makeCell(formatNTD(totalWithTax), { bold: true, shade: '2E7D32', align: AlignmentType.RIGHT, color: 'FFFFFF' }),
+        makeCell('', { shade: '2E7D32' }),
+      ],
+    }))
+  }
 
   const mainTable = new Table({
     rows: [headerRow, ...dataRows],
